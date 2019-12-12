@@ -6,11 +6,12 @@ import cProfile
 #import torch
 import fractions
 import time
-import pyautogui
-import cv2
+#import pyautogui
+#import cv2
+import sys
 
-a = np.array([np.quaternion(i, i + 1, 2, 3) for i in range(4)]).reshape((2, 2))
-print(1 / quaternion.as_float_array([a, a]))
+a=np.quaternion(*np.array([1,2,3]))
+print(np.linalg.norm(a))
 
 
 """

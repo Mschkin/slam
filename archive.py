@@ -29,7 +29,9 @@ from dask.array.ufunc import logaddexp
 # Design decisions:
 # initialise weights for phasespase_view with just one 1 in the middle and flow n-1/2 steps
 # pool takes max and not extrem
-# try sooming in instead of walking around
+# try zooming in instead of walking around
+# learning rate =0.3
+# use "symplectic" method for larange min so we dont need to save in between
 #######################################################
 #######################################################
 
