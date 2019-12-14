@@ -11,7 +11,7 @@ import time
 import sys
 
 a=np.quaternion(*np.array([1,2,3]))
-print(np.linalg.norm(a))
+print(np.abs(a))
 
 
 """

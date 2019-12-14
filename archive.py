@@ -1,11 +1,9 @@
-#import torch
+import torch
 import cv2
 import numpy as np
 import itertools
-from memory_profiler import profile
 import sys
 from copy import deepcopy
-from pympler import asizeof
 from scipy.special import expit
 from scipy.signal import convolve
 from skimage.measure import block_reduce
@@ -722,7 +720,7 @@ def numericdiff(f, inpt, index):
             continue
         ten = np.zeros(tuple(list(np.shape(inp)) +
                              list(np.shape(r))), dtype=np.double)
-        for s, val in np.ndenumerate(inp):
+        for s, _ in np.ndenumerate(inp):
             n = deepcopy(inp) * 1.0
             n[s] += h
             ten[s] = (
