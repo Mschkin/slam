@@ -10,8 +10,9 @@ import time
 #import cv2
 import sys
 
-a=np.quaternion(*np.array([1,2,3]))
-print(np.abs(a))
+a=[1,2,3]
+b=[5,5,5]
+print(np.reshape(np.transpose([a,b]),6))
 
 
 """
