@@ -10,10 +10,11 @@ import time
 #import cv2
 import sys
 
-a=[1,2,3]
-b=[5,5,5]
-print(np.reshape(np.transpose([a,b]),6))
-
+gm = np.random.rand(10 ** 8, 5)
+b = np.random.rand(5)
+print('here')
+gm @ b
+print('done')
 
 """
 a = np.array([1, 2, 3])
