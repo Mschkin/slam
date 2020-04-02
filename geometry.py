@@ -157,6 +157,7 @@ def iterate_BT(x, y, weights):
 
 
 def iterate_BT_newton(x, y, weights, q, t):
+    
     for _ in range(10):
         bt = findanalytic_BT_newton(x, y, weights)
         expb = np.exp(np.quaternion(*bt[:3]))
@@ -192,8 +193,8 @@ def iterate_BT_newton(x, y, weights, q, t):
     t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
     q = expb * q
     j = parallel_transport_jacobian(q, t)
-    dbt = np.einsum('ijk,kl,lm', dLdg, np.linalg.inv(H), j)
-    return q, t, dbt
+    #dbt = np.einsum('ijk,kl,lm->ijm', dLdg, -np.linalg.inv(H),j)
+    return q, t, j, dLdg, dLdr, H,x,y
 
 def parallel_transport_jacobian(q, t):
     b = quaternion.as_float_array(np.log(q))[1:]
@@ -252,9 +253,6 @@ def init_R(zahl):
         if np.all(quaternion.as_float_array(y)[:, 3] > 0):
             break
     weights = np.eye(zahl)+0.000*np.random.rand(zahl, zahl)
-    #print('b', b)
-    #print('t:', t)
-    #print('q:', q)
     x = quaternion.as_float_array(x)
     y = quaternion.as_float_array(y)
     xp = np.array([[xi[1]/xi[3], xi[2]/xi[3], 1] for xi in x])
@@ -484,25 +482,38 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
     r, dr = findanalytic_R(q, t, weights, xp, yp)
-    x = []
-    y = []
-    for n, ri in enumerate(r):
-        if n % 2 == 0:
-            x.append(np.quaternion(*(ri * xp[n // 2])))
-        else:
-            y.append(np.quaternion(*(ri * yp[n // 2])))
-    x = np.array(x)
-    y = np.array(y)
-    q, t, y = iterate_BT(x, y, weights)
-    _, _, dbt = iterate_BT_newton(x, y, weights, q, t)
-    #drdr = np.array(sum([[1, quaternion.as_float_array(q * np.quaternion(*yi) * np.conjugate(q))[3]] for yi in yp], []))
+    def rwraper(r,xp,yp,weights,dr):
+        x = []
+        y = []
+        for n, ri in enumerate(r):
+            if n % 2 == 0:
+                x.append(np.quaternion(*(ri * xp[n // 2])))
+            else:
+                y.append(np.quaternion(*(ri * yp[n // 2])))
+        x = np.array(x)
+        y = np.array(y)
+        q, t, y = iterate_BT(x, y, weights)
+        q, t, j, dLdg, dLdr, H,x,y= iterate_BT_newton(x, y, weights, q, t)
+        drdr = np.array(sum([[1, quaternion.as_float_array(q * np.quaternion(*yi) * np.conjugate(q))[3]] for yi in yp], []))
+        r_new = [i for k in np.transpose([quaternion.as_float_array(x)[:, 3], quaternion.as_float_array(y)[:, 3]]) for i in k]
+        dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,k,kl->ijl', dr, drdr, dLdr), -np.linalg.inv(H), j)
+        return r_new, dbt, q,drdr
+    r_new, dbt, q, drdr = rwraper(r, xp, yp, weights, dr)
+    def wraperwraper(r, xp, yp, weights, dr):
+        r_new, dbt, q, drdr = rwraper(r, xp, yp, weights, dr)
+        return np.array(r_new)
+    a = numericdiff(wraperwraper, [r, xp, yp, weights, dr], 0)
+    print(np.max(drdr - a[0]))
+    print(a[0])
+    print(drdr)
     #for i in range(len(xp)):
     #    print(dLdr[2*i]+dLdr[2*i+1])
     #drdbt = find_drdbt(q, y)
     #bt=np.concatenate((quaternion.as_float_array(np.log(q))[1:],quaternion.as_float_array(t)[1:]))
     #drdbt_num = numericdiff(debug_drdbt, [bt, x, y], 0)
     #print(np.max(drdbt_num),np.max(drdbt_num[0]-drdbt))
-    #dbt = -np.einsum('ijk,kl->ijl', dLdg + np.einsum('ijk,k,kl->ijl', dr, drdr, dLdr), np.linalg.inv(H + drdbt @ dLdr))
+    
+    #dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,kl->ijl', dr, dLdr), -np.linalg.inv(H),j)
     #dbt = -np.einsum('ijk,kl->ijl', dLdg, np.linalg.inv(H))
     #dbt = dLdg + np.einsum('ijk,k,kl->ijl', dr, drdr,dLdr)
     return quaternion.as_float_array(q), dbt
@@ -522,7 +533,7 @@ def find_BT_from_BTnum(bt_true, xp, yp, weights):
     x = np.array(x)
     y = np.array(y)
     q, t, y = iterate_BT(x, y, weights)
-    q, t, dbt = iterate_BT_newton(x, y, weights, q, t)
+    q, t, _,_,_,_,_,_ = iterate_BT_newton(x, y, weights, q, t)
     b = np.log(q)
     return np.concatenate((quaternion.as_float_array(b)[1:], quaternion.as_float_array(t)[1:]))
 
@@ -593,23 +604,27 @@ def wrap_iterate_newton(x, y, weights, q, t):
 
 # cProfile.run('f()')
 x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(10)
-xq=np.array([np.quaternion(*xi) for xi in x])
+xq = np.array([np.quaternion(*xi) for xi in x])
+yq = np.array([np.quaternion(*yi) for yi in y])
+
 #x, y, q_true, t_true, weights = init_BT(10)
-"""
+
 bt_true = np.concatenate((quaternion.as_float_array(
     b)[1:], quaternion.as_float_array(t_true)[1:]))
+q, b = find_BT_from_BT(bt_true, xp, yp, weights)
 a = numericdiff(find_BT_from_BTnum, [bt_true, xp, yp, weights], 3)
-_, b = find_BT_from_BT(bt_true, xp, yp, weights)
-print(np.max(a),np.max(a[0]-b))
+
+print(np.max(a[0]-b))
 """
-dbt_num = numericdiff(wrap_iterate_newton, [deepcopy(xq), deepcopy(xq), weights, np.quaternion(1, 0, 0, 0), 0 * t_true], 2)
+dbt_num = numericdiff(wrap_iterate_newton, [deepcopy(xq), deepcopy(yq), weights, q_true, t_true], 2)
 #dbt_num_2 = numericdiff(wrap_iterate_newton, [x, np.exp(np.quaternion(0, 0.01, 0, 0)) * y * np.exp(np.quaternion(0, -0.01, 0, 0)), weights, np.quaternion(1, 0, 0, 0), 0 * t_true], 2)
 #dbt_num_3 = numericdiff(wrap_iterate_newton, [x, y, weights, np.exp(np.quaternion(0, -0.01, 0, 0)) * np.quaternion(1, 0, 0, 0), 0 * t_true], 2)
-q, t, dbt = iterate_BT_newton(deepcopy(xq), deepcopy(xq), weights, np.quaternion(1,0,0,0), 0*t_true)
+q, t, dbt = iterate_BT_newton(deepcopy(xq), deepcopy(yq), weights, q_true, t_true)
 #dbt = -np.einsum('ijk,kl->ijl', dLdg, np.linalg.inv(H))
-print(np.max(dbt_num[0] -dbt))
+print(np.max(dbt_num[0]-dbt))
 #print(q - q_true)
 #print(t - t_true)
 #print(np.max(dbt_num[0] -dbt))
 #print(np.sum(dbt_num[0] * dbt) / np.linalg.norm(dbt_num) / np.linalg.norm(dbt))
 #print(np.linalg.norm(dbt_num))
+"""
