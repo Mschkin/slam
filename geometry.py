@@ -4,6 +4,7 @@ import random
 from copy import deepcopy
 import cProfile
 # todo:
+#fyjkihg67uio87ygh
 # boundaries of correct convergence, 0.2 seems still to work
 # combine several pictures to one map
 # for training use b,t to get r then calculate b,t (build including h gradient with respect to weights)
@@ -493,15 +494,7 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
         x = np.array(x)
         y = np.array(y)
         q, t, y = iterate_BT(x, y, weights)
-        q, t, j, dLdg, dLdr, H,x,y= iter
-        
-        
-        
-        
-        
-        
-        
-        ate_BT_newton(x, y, weights, q, t)
+        q, t, j, dLdg, dLdr, H,x,y= iterate_BT_newton(x, y, weights, q, t)
         drdr = np.array(sum([[1, quaternion.as_float_array(q * np.quaternion(*yi) * np.conjugate(q))[3]] for yi in yp], []))
         r_new = [i for k in np.transpose([quaternion.as_float_array(x)[:, 3], quaternion.as_float_array(y)[:, 3]]) for i in k]
         dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,k,kl->ijl', dr, drdr, dLdr), -np.linalg.inv(H), j)
