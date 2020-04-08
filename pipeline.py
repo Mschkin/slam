@@ -2,6 +2,8 @@ import numpy as np
 import quaternion
 from scipy.special import expit
 from copy import deepcopy
+from geometry import find_BT_from_BT
+import cProfile
 
 
 def test_finder(I):
@@ -36,7 +38,7 @@ def splittimg(I):
     # print(r.dtype)
     return r / 255 - .5
 
-
+"""
 def trans_rot_norm(x, y, t, q, focal_lenght, x3, y3):
     x = np.quaternion(0, x[0] - 48, x[1] - 48, focal_lenght) * x3
     qytqi = q * (np.quaternion(0, (y[0] - 48) * y3,
@@ -98,10 +100,9 @@ def min_larange_finder(lagrange_weights, depthx, depthy, q, t):
         q=q*np.exp(-learing_rate*sum([np.quaternion(*np.eye(4)[i+1])*rot_der[i] for i in range(3)]))
         assert np.abs(q)-1<10**-12
     return q,t,depthx,depthy
- 
+"""
 
-        
-
+    
 
 
 def pipeline(I1, I2):
@@ -127,15 +128,24 @@ def pipeline(I1, I2):
     describtion2 = np.concatenate(
         (np.ones(np.shape(describtion2)), describtion2), axis=2)
     compare_net = np.random.rand(18)
-    lagrange_weights = expit(np.einsum(
+    weights = expit(np.einsum(
         'ijk,lmk,k->ijlm', describtion1, describtion2, compare_net)) * (np.einsum('ij,kl->ijkl', interest1, interest2))
-    print('here', np.shape(lagrange_weights))
+    """
     rot = np.quaternion(0, 1, 0, 0)
     t = np.quaternion(0, 0, 0, 0)
     depth1 = np.ones((99, 99))
     depth2 = np.ones((99, 99))
     min_larange_finder(lagrange_weights,
                                depth1, depth2, rot, t)
+    """
+    xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
+        (99)), 50*np.ones((99))), axis = -1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis = -1)) - 49
+    xp = np.reshape(xp, (99 * 99, 3))
+    yp = xp
+    weights=np.reshape(weights,(99*99,99*99))
+    bt_true = np.random.rand(6)
+    bt = find_BT_from_BT(bt_true, xp, yp, weights)
+    return bt
 
 
 def numericdiff(f, inpt, index):
@@ -161,4 +171,4 @@ def numericdiff(f, inpt, index):
 I1 = np.random.randint(0, 255, (324, 324, 3))
 I2 = np.random.randint(0, 255, (324, 324, 3))
 
-pipeline(I1, I2)
+cProfile.run('pipeline(I1, I2)')
