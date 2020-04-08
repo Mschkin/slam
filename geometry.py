@@ -14,7 +14,7 @@ import cProfile
 # For optimized version, make sure that the r of x and y have seperate indices instead of alterating
 
 
-random.seed(126798)
+#random.seed(126798)
 # random.seed(1267)
 
 def init_BT(zahl):
@@ -62,7 +62,7 @@ def findanalytic_BT(x, y, weights):
     return -np.linalg.inv(h)@l
 
 
-def findanalytic_BT_newton(x, y, weights, final_run=False):
+def findanalytic_BT_newton(x, y,yp,q, weights, final_run=False):
     # make b small, otherwise no convergence
     y = quaternion.as_float_array(y)
     y = y[:, 1:]
@@ -100,14 +100,15 @@ def findanalytic_BT_newton(x, y, weights, final_run=False):
                                                         x[xi, 0],
                                                         x[xi, 1],
                                                         x[xi, 2]])
-            dLdr[2*yi+1, :] += 2 * g/y[yi, 2] * np.array([2 * x[xi, 1] * y[yi, 2] - 2 * x[xi, 2] * y[yi, 1],
-                                                          2*x[xi, 2]*y[yi, 0] -
-                                                          2*x[xi, 0]*y[yi, 2],
-                                                          2*x[xi, 0]*y[yi, 1] -
-                                                          2*x[xi, 1]*y[yi, 0],
-                                                          -y[yi, 0],
-                                                          -y[yi, 1],
-                                                          -y[yi, 2]])
+            ytilde = quaternion.as_float_array(q * np.quaternion(*yp[yi]) * np.conjugate(q))
+            dLdr[2 * yi + 1,:] += 2 * g * np.array([2 * x[xi, 1] * ytilde[3] - 2 * x[xi, 2] * ytilde[2],
+                                                          2*x[xi, 2]*ytilde[ 1] -
+                                                          2*x[xi, 0]*ytilde[3],
+                                                          2*x[xi, 0]*ytilde[2] -
+                                                          2*x[xi, 1]*ytilde[1],
+                                                          -ytilde[1],
+                                                          -ytilde[2],
+                                                          -ytilde[3]])
 
         # print(l)
     #print(H - np.transpose(H))
@@ -157,10 +158,10 @@ def iterate_BT(x, y, weights):
     #print('distance:', np.linalg.norm(np.abs(x-y)))
 
 
-def iterate_BT_newton(x, y, weights, q, t):
+def iterate_BT_newton(x, y,yp, weights, q, t):
     
     for _ in range(10):
-        bt = findanalytic_BT_newton(x, y, weights)
+        bt = findanalytic_BT_newton(x, y,yp,q, weights)
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
@@ -187,7 +188,7 @@ def iterate_BT_newton(x, y, weights, q, t):
     dLdrnum = numericdiff(wrap_findanalytic_BT_newton, [xp, yp, weights,r], 3)
     print(np.max(np.abs(dLdrnum)), np.max(dLdrnum[0] - Lr))
     """
-    bt, dLdg, dLdr, H = findanalytic_BT_newton(x, y, weights, final_run = True)
+    bt, dLdg, dLdr, H = findanalytic_BT_newton(x, y,yp,q, weights, final_run = True)
     #print(bt)
     expb = np.exp(np.quaternion(*bt[:3]))
     y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
@@ -483,30 +484,18 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
     r, dr = findanalytic_R(q, t, weights, xp, yp)
-    def rwraper(r,xp,yp,weights,dr):
-        x = []
-        y = []
-        for n, ri in enumerate(r):
-            if n % 2 == 0:
-                x.append(np.quaternion(*(ri * xp[n // 2])))
-            else:
-                y.append(np.quaternion(*(ri * yp[n // 2])))
-        x = np.array(x)
-        y = np.array(y)
-        q, t, y = iterate_BT(x, y, weights)
-        q, t, j, dLdg, dLdr, H,x,y= iterate_BT_newton(x, y, weights, q, t)
-        drdr = np.array(sum([[1, quaternion.as_float_array(q * np.quaternion(*yi) * np.conjugate(q))[3]] for yi in yp], []))
-        r_new = [i for k in np.transpose([quaternion.as_float_array(x)[:, 3], quaternion.as_float_array(y)[:, 3]]) for i in k]
-        dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,k,kl->ijl', dr, drdr, dLdr), -np.linalg.inv(H), j)
-        return r_new, dbt, q,drdr
-    r_new, dbt, q, drdr = rwraper(r, xp, yp, weights, dr)
-    def wraperwraper(r, xp, yp, weights, dr):
-        r_new, dbt, q, drdr = rwraper(r, xp, yp, weights, dr)
-        return np.array(r_new)
-    a = numericdiff(wraperwraper, [r, xp, yp, weights, dr], 0)
-    print(np.max(drdr - a[0]))
-    print(a[0])
-    print(drdr)
+    x = []
+    y = []
+    for n, ri in enumerate(r):
+        if n % 2 == 0:
+            x.append(np.quaternion(*(ri * xp[n // 2])))
+        else:
+            y.append(np.quaternion(*(ri * yp[n // 2])))
+    x = np.array(x)
+    y = np.array(y)
+    q, t, y = iterate_BT(x, y, weights)
+    q, t, j, dLdg, dLdr, H,x,y= iterate_BT_newton(x, y,yp, weights, q, t)
+    dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,kl->ijl', dr, dLdr), -np.linalg.inv(H), j)
     #for i in range(len(xp)):
     #    print(dLdr[2*i]+dLdr[2*i+1])
     #drdbt = find_drdbt(q, y)
@@ -534,7 +523,7 @@ def find_BT_from_BTnum(bt_true, xp, yp, weights):
     x = np.array(x)
     y = np.array(y)
     q, t, y = iterate_BT(x, y, weights)
-    q, t, _,_,_,_,_,_ = iterate_BT_newton(x, y, weights, q, t)
+    q, t, _,_,_,_,_,_ = iterate_BT_newton(x, y,yp, weights, q, t)
     b = np.log(q)
     return np.concatenate((quaternion.as_float_array(b)[1:], quaternion.as_float_array(t)[1:]))
 
