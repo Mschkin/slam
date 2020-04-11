@@ -3,6 +3,7 @@ import quaternion
 import random
 from copy import deepcopy
 import cProfile
+from sympy import LeviCivita
 # todo:
 #fyjkihg67uio87ygh
 # boundaries of correct convergence, 0.2 seems still to work
@@ -14,7 +15,7 @@ import cProfile
 # For optimized version, make sure that the r of x and y have seperate indices instead of alterating
 
 
-#random.seed(126798)
+random.seed(126798)
 # random.seed(1267)
 
 def init_BT(zahl):
@@ -167,8 +168,48 @@ def init_R(zahl):
     y = quaternion.as_float_array(y)
     xp = np.array([[xi[1]/xi[3], xi[2]/xi[3], 1] for xi in x])
     yp = np.array([[yi[1]/yi[3], yi[2]/yi[3], 1] for yi in y])
-    return x, y, b, q, t, weights, xp, yp, np.reshape(np.transpose([x[:, 3], y[:, 3]]), 2*len(x))
+    return x, y, b, q, t, weights, xp, yp, np.reshape(np.transpose([x[:, 3], y[:, 3]]), 2 * len(x))
+    
+def get_hessian_parts_R(xp, yp):
+    hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
+    hdy_R = 2 * np.einsum('ij,ij->i', yp, yp)
+    hnd_raw_R = np.einsum('ij,kl->ikjl', xp, yp)
+    return hdx_R, hdy_R, hnd_raw_R
+    
 
+def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
+    # the first half of are r_x, the second half is r_y
+    q = quaternion.as_float_array(q)
+    t = quaternion.as_float_array(t)[1:]
+    a = 2 * np.arccos(q[0])
+    if a!=0:
+        u = q[1:] / np.sin(a / 2)
+    else:
+        u = np.array([0, 0, 0])
+    angle_mat = (np.cos(a) - 1) * np.einsum('i,j->ij', u, u)\
+                + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)\
+                - np.cos(a) * np.eye(3)
+    hnd_R = 2*np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
+    H_r = np.zeros((2 * len(xp), 2 * len(yp)))
+    H_r[:len(xp),:len(xp)] = np.diag(np.einsum('i,ij->i', hdx_R, weights))
+    H_r[len(xp):, len(xp):] = np.diag(np.einsum('i,ji->i', hdy_R, weights))
+    H_r[:len(xp),len(xp):] = hnd_R * weights
+    H_r[len(xp):, :len(xp)] = np.transpose(H_r[:len(xp),len(xp):])
+    H_inv = np.linalg.inv(H_r)
+    l_x = 2*np.einsum('ij,j->i', xp, t)
+    l_y_vec = t * np.cos(a) + (u @ t) * (1 - np.cos(a)) * u + np.sin(a) * np.cross(t, u)
+    l_y = -2 * np.einsum('ij,j->i', yp, l_y_vec)
+    #l = np.concatenate((l_x, l_y))
+    L = np.concatenate((np.einsum('ij,i->i', weights, l_x), np.einsum('ji,i->i', weights, l_y)))
+    H_invL = H_inv @ L
+    dr = np.einsum('ik,k,k,n->kni', H_inv[:,:len(xp)], hdx_R, H_invL[:len(xp)], np.ones(len(xp)))\
+        + np.einsum('ik,kn,n->kni', H_inv[:,:len(xp)], hnd_R, H_invL[len(xp):])\
+        + np.einsum('in,kn,k->kni', H_inv[:, len(xp):], hnd_R, H_invL[:len(xp)])\
+        + np.einsum('in,n,n,k->kni', H_inv[:, len(xp):], hdy_R, H_invL[len(xp):], np.ones(len(xp)))\
+        - np.einsum('ij,j,k->jki', H_inv[:,:len(xp)], l_x, np.ones(len(xp)))\
+        - np.einsum('ik,k,j->jki', H_inv[:,len(xp):], l_y, np.ones(len(xp)))
+    return - H_invL,dr,H_r,L
+            
 
 def findanalytic_R(q, t, weights, xp, yp):
     q = quaternion.as_float_array(q)
@@ -187,8 +228,10 @@ def findanalytic_R(q, t, weights, xp, yp):
         h[2*xi, 2*xi] += 2*(xp[xi, 0]**2+xp[xi, 1]**2+1)
         h[2*yi+1, 2*yi+1] += 2*(yp[yi, 0]**2+yp[yi, 1]**2+1)
         h[2*xi, 2*yi+1] += 2*(-xp[xi, 0]*yp[yi, 0]+u[0] * u[2] * (xp[xi, 0]+yp[yi, 0]) * (-1+np.cos(a))+u[2]**2 * (1-xp[xi, 0] * yp[yi, 0])
-                              * (-1+np.cos(a))+u[1] * u[2] * (xp[xi, 1]+yp[yi, 1]) * (-1+np.cos(a))+u[0] * u[1] * (xp[xi, 1] * yp[yi, 0]+xp[xi, 0] * yp[yi, 1]) * (-1+np.cos(a))-u[1]**2 * (xp[xi, 0] * yp[yi, 0]-xp[xi, 1] * yp[yi, 1])
-                              * (-1+np.cos(a))-np.cos(a)-xp[xi, 1] * yp[yi, 1] * np.cos(a)-u[1] * (xp[xi, 0]-yp[yi, 0]) * np.sin(a)+u[0] * (xp[xi, 1]-yp[yi, 1]) * np.sin(a)+u[2] * (-xp[xi, 1] * yp[yi, 0]+xp[xi, 0] * yp[yi, 1]) * np.sin(a))
+                              * (-1 + np.cos(a)) + u[1] * u[2] * (xp[xi, 1] + yp[yi, 1]) * (-1 + np.cos(a)) + u[0] * u[1] * (xp[xi, 1] * yp[yi, 0]
+                              + xp[xi, 0] * yp[yi, 1]) * (-1 + np.cos(a)) - u[1]** 2 * (xp[xi, 0] * yp[yi, 0] - xp[xi, 1] * yp[yi, 1])
+                              * (-1 + np.cos(a)) - np.cos(a) - xp[xi, 1] * yp[yi, 1] * np.cos(a) - u[1] * (xp[xi, 0] - yp[yi, 0]) * np.sin(a) + u[0] * (xp[xi, 1] - yp[yi, 1]) * np.sin(a)
+                              + u[2] * (-xp[xi, 1] * yp[yi, 0] + xp[xi, 0] * yp[yi, 1]) * np.sin(a))
         h[2*yi+1, 2*xi] = h[2*xi, 2*yi+1]
         H += g * h
         h_list[:, xi, yi, :] = h
@@ -202,7 +245,7 @@ def findanalytic_R(q, t, weights, xp, yp):
     HinvL = Hinv @ L
     dr = np.einsum('j,jklm,mi->kli', HinvL, h_list, Hinv) - \
         np.einsum('ijk,kl->ijl',  l_list, Hinv)
-    return - HinvL, dr
+    return - HinvL, dr,H,L
 
 
 def init_BTR(zahl):
@@ -311,7 +354,12 @@ def iterate_BTR_newton(xp, y, weights, rq, rt):
 def find_BT_from_BT(bt_true, xp, yp, weights):
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
-    r, dr = findanalytic_R(q, t, weights, xp, yp)
+    hdx_R, hdy_R, hnd_raw_R=get_hessian_parts_R(xp,yp)
+    rf,drf,Hf,Lf=fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    r, dr ,H,L= findanalytic_R(q, t, weights, xp, yp)
+    drnew = np.zeros((len(xp),len(xp),2 * len(xp)))
+    drnew[:,:,::2] = drf[:,:,:len(xp)]
+    drnew[:,:,1::2] = drf[:,:,len(xp):]
     x = np.transpose(r[::2] * np.transpose(xp))
     y = np.transpose(r[1::2] * np.transpose(yp))
     q, t, y = iterate_BT(x, y, weights)
@@ -356,6 +404,8 @@ def tester():
     bt_true = np.concatenate((quaternion.as_float_array(
         b)[1:], quaternion.as_float_array(t_true)[1:]))
     q, b = find_BT_from_BT(bt_true, xp, yp, weights)
-    a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
+    #a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
 
-    print(np.max(a[0]-b))
+    #print(np.max(a[0]-b))
+
+tester()
