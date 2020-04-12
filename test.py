@@ -10,11 +10,26 @@ import time
 #import cv2
 import sys
 
-gm = np.random.rand(10 ** 8, 5)
-b = np.random.rand(5)
-print('here')
-gm @ b
-print('done')
+class timer:
+    lastcall = 0
+    
+    def __init__(self):
+        self.lastcall = time.perf_counter()
+    
+    def tick(self):
+        call = time.perf_counter()
+        diff = call - self.lastcall
+        self.lastcall = call
+        return diff
+        
+
+t = timer()
+print(t.tick())
+#a = np.array([[1, 2], [3, 4]])
+#b=1/np.array([1,2])
+#print(a / b)
+#print(np.einsum('ij,j->ij',a,b))
+
 
 """
 a = np.array([1, 2, 3])
