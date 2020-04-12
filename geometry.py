@@ -4,6 +4,7 @@ import random
 from copy import deepcopy
 import cProfile
 from sympy import LeviCivita
+import time 
 # todo:
 #fyjkihg67uio87ygh
 # boundaries of correct convergence, 0.2 seems still to work
@@ -12,11 +13,26 @@ from sympy import LeviCivita
 # 
 #
 #
-# For optimized version, make sure that the r of x and y have seperate indices instead of alterating
+# build new dr
 
 
 random.seed(126798)
 # random.seed(1267)
+
+
+class timer:
+    lastcall = 0
+    
+    def __init__(self):
+        self.lastcall = time.perf_counter()
+    
+    def tick(self):
+        call = time.perf_counter()
+        diff = call - self.lastcall
+        self.lastcall = call
+        print(diff)
+        return diff
+        
 
 def init_BT(zahl):
     x = []
@@ -178,6 +194,8 @@ def get_hessian_parts_R(xp, yp):
     
 
 def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
+    tim = timer()
+    tim.tick()
     # the first half of are r_x, the second half is r_y
     q = quaternion.as_float_array(q)
     t = quaternion.as_float_array(t)[1:]
@@ -189,26 +207,54 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     angle_mat = (np.cos(a) - 1) * np.einsum('i,j->ij', u, u)\
                 + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)\
                 - np.cos(a) * np.eye(3)
-    hnd_R = 2*np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
-    H_r = np.zeros((2 * len(xp), 2 * len(yp)))
-    H_r[:len(xp),:len(xp)] = np.diag(np.einsum('i,ij->i', hdx_R, weights))
-    H_r[len(xp):, len(xp):] = np.diag(np.einsum('i,ji->i', hdy_R, weights))
-    H_r[:len(xp),len(xp):] = hnd_R * weights
-    H_r[len(xp):, :len(xp)] = np.transpose(H_r[:len(xp),len(xp):])
-    H_inv = np.linalg.inv(H_r)
+    hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
+    tim.tick()
+    #H_r = np.zeros((2 * len(xp), 2 * len(yp)))
+    #H_r[:len(xp),:len(xp)] = np.diag(np.einsum('i,ij->i', hdx_R, weights))
+    #H_r[len(xp):, len(xp):] = np.diag(np.einsum('i,ji->i', hdy_R, weights))
+    #H_r[:len(xp),len(xp):] = hnd_R * weights
+    #H_r[len(xp):, :len(xp)] = np.transpose(H_r[:len(xp),len(xp):])
+    #Y=(B C^{-1}B^\dagger-A)^{-1}B C^{-1}
+    #Z=C^{-1}(1-B^\dagger Y)
+    #X=A^{-1}(1-B Y^\dagger)
+    Hdx_R = np.einsum('i,ij->i', hdx_R, weights)
+    Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
+    Hnd_R = hnd_R * weights
+    print('got H')
+    tim.tick()
+    #Hnd_R_inv = np.einsum('ij,j->ij', np.linalg.inv(np.einsum('ij,j,kj->ik', hnd_R, 1 / Hdy_R, hnd_R) - np.diag(Hdx_R)) @ Hnd_R, 1 / Hdy_R)
+    Hnd_R_inv = (np.linalg.inv(((hnd_R/ Hdy_R)@ np.transpose(hnd_R)) - np.diag(Hdx_R)) @ Hnd_R)/ Hdy_R
+    print(1)
+    tim.tick()
+    Hdy_R_inv = np.einsum('i,ij->ij', 1 / Hdy_R, np.eye(len(xp)) - np.transpose(Hnd_R) @ Hnd_R_inv)
+    print(2)
+    tim.tick()
+    Hdx_R_inv = np.einsum('i,ij->ij', 1 / Hdx_R, np.eye(len(xp)) - Hnd_R @ np.transpose(Hnd_R_inv))
+    print('got Hinv')
+    tim.tick()
+    #H_inv = np.linalg.inv(H_r)
     l_x = 2*np.einsum('ij,j->i', xp, t)
     l_y_vec = t * np.cos(a) + (u @ t) * (1 - np.cos(a)) * u + np.sin(a) * np.cross(t, u)
     l_y = -2 * np.einsum('ij,j->i', yp, l_y_vec)
     #l = np.concatenate((l_x, l_y))
-    L = np.concatenate((np.einsum('ij,i->i', weights, l_x), np.einsum('ji,i->i', weights, l_y)))
-    H_invL = H_inv @ L
+    L_x = np.einsum('ij,i->i', weights, l_x)
+    L_y = np.einsum('ji,i->i', weights, l_y)
+    r_x = - Hdx_R_inv @ L_x - Hnd_R_inv @ L_y
+    r_y = -L_x @ Hnd_R_inv - Hdy_R_inv @ L_y
+    print('done')
+    tim.tick()
+    w = 1 / 0
+    return w
+    #H_invL = H_inv @ L
+    """
     dr = np.einsum('ik,k,k,n->kni', H_inv[:,:len(xp)], hdx_R, H_invL[:len(xp)], np.ones(len(xp)))\
         + np.einsum('ik,kn,n->kni', H_inv[:,:len(xp)], hnd_R, H_invL[len(xp):])\
         + np.einsum('in,kn,k->kni', H_inv[:, len(xp):], hnd_R, H_invL[:len(xp)])\
         + np.einsum('in,n,n,k->kni', H_inv[:, len(xp):], hdy_R, H_invL[len(xp):], np.ones(len(xp)))\
         - np.einsum('ij,j,k->jki', H_inv[:,:len(xp)], l_x, np.ones(len(xp)))\
         - np.einsum('ik,k,j->jki', H_inv[:,len(xp):], l_y, np.ones(len(xp)))
-    return - H_invL,dr,H_r,L
+    """
+    return r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv
             
 
 def findanalytic_R(q, t, weights, xp, yp):
@@ -355,13 +401,10 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
     hdx_R, hdy_R, hnd_raw_R=get_hessian_parts_R(xp,yp)
-    rf,drf,Hf,Lf=fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
-    r, dr ,H,L= findanalytic_R(q, t, weights, xp, yp)
-    drnew = np.zeros((len(xp),len(xp),2 * len(xp)))
-    drnew[:,:,::2] = drf[:,:,:len(xp)]
-    drnew[:,:,1::2] = drf[:,:,len(xp):]
-    x = np.transpose(r[::2] * np.transpose(xp))
-    y = np.transpose(r[1::2] * np.transpose(yp))
+    r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv=fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    #r, dr ,H,L= findanalytic_R(q, t, weights, xp, yp)
+    x = np.transpose(r_x * np.transpose(xp))
+    y = np.transpose(r_y * np.transpose(yp))
     q, t, y = iterate_BT(x, y, weights)
     q, t, j, dLdg, dLdr, H, x, y = iterate_BT_newton(x, y, yp, weights, q, t)
     dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,kl->ijl', dr, dLdr), -np.linalg.inv(H), j)
@@ -408,4 +451,4 @@ def tester():
 
     #print(np.max(a[0]-b))
 
-tester()
+#tester()
