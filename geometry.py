@@ -12,8 +12,9 @@ import time
 # for training use b,t to get r then calculate b,t (build including h gradient with respect to weights)
 # 
 #
-#
+# save weights row and column sum
 # build new dr
+# find analytic bt does not converge quadraticaly
 
 
 random.seed(126798)
@@ -67,7 +68,46 @@ def findanalytic_BT(x, y, weights):
                              x[xi, 0]-y[yi, 1],
                              x[xi, 1]-y[yi, 2],
                              x[xi, 2]-y[yi, 3]])
-    return -np.linalg.inv(h)@l
+    return - np.linalg.inv(h) @ l
+
+def fast_findanalytic_BT(x, y, weights):
+    y = quaternion.as_float_array(y)[:, 1:]
+    H=np.zeros((6,6))
+    h_bb = 8 * np.einsum('ij,ij,kl->ikl', y, y, np.eye(3)) - 8 * np.einsum('ij,ik->ijk', y, y)
+    H[:3,:3] = np.einsum('ij,jkl->kl', weights, h_bb)
+    h_bt = 4 * np.einsum('ij,klj->ikl', y, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    H[:3,3:] = np.einsum('ij,jkl->kl', weights, h_bt)
+    H[3:, 3:] = 2 * np.eye(3) * np.sum(weights)
+    H[3:,:3] = np.transpose(H[:3, 3:])
+    L = np.zeros(6)
+    L[:3] = 4 * np.einsum('ij,ik,jl,mkl->m', weights, x, y, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    L[3:] = 2 * np.einsum('ij,ik->k', weights, x) - 2 * np.einsum('ij,jk->k', weights, y)
+    return - np.linalg.inv(H) @ L
+        
+def fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, final_run=False):
+    y = quaternion.as_float_array(y)[:, 1:]
+    H=np.zeros((6,6))
+    h_bb = 8 * np.einsum('ij,mj,kl->imkl', x, y, np.eye(3)) - 4 * np.einsum('ij,mk->imjk', x, y)-4 * np.einsum('ij,mk->imkj', x, y)
+    H[:3,:3] = np.einsum('ij,ijkl->kl', weights, h_bb)
+    h_bt = 4 * np.einsum('ij,klj->ikl', y, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    H[:3,3:] = np.einsum('ij,jkl->kl', weights, h_bt)
+    H[3:, 3:] = 2 * np.eye(3) * np.sum(weights)
+    H[3:,:3] = np.transpose(H[:3, 3:])
+    L = np.zeros(6)
+    l = np.zeros((len(xp), len(xp), 6))
+    l[:,:,:3]=4 * np.einsum('ik,jl,mkl->ijm', x, y, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    l[:,:, 3:] = 2 * (np.reshape(np.hstack(len(x) * [x]), (len(x), len(x), 3)) - np.reshape(np.vstack(len(y) * [y]), (len(y), len(y), 3)))
+    L = np.einsum('ij,ijk->k', weights, l)
+    if final_run:
+        dLdrx = np.zeros((len(x),6))
+        dLdrx[:,:3] = 4 * np.einsum('ij,ik,jl,mkl->im', weights, xp, y, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+        dLdrx[:,3:] = 2 * np.einsum('ij,ik->ik', weights, xp)
+        ytilde = quaternion.as_float_array([q * np.quaternion(*yi) * np.conjugate(q) for yi in yp])[:,1:]
+        dLdry = np.zeros((len(y),6))
+        dLdry[:,:3] = 4 * np.einsum('ij,ik,jl,mkl->jm', weights, x, ytilde, np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+        dLdry[:,3:] = - 2 * np.einsum('ij,jk->jk', weights, ytilde)
+        return - np.linalg.inv(H) @ L, l, dLdrx, dLdry, H
+    return - np.linalg.inv(H) @ L
 
 
 def findanalytic_BT_newton(x, y, yp, q, weights, final_run=False):
@@ -107,10 +147,8 @@ def findanalytic_BT_newton(x, y, yp, q, weights, final_run=False):
                                                         x[xi, 2]])
             ytilde = quaternion.as_float_array(q * np.quaternion(*yp[yi]) * np.conjugate(q))
             dLdr[2 * yi + 1,:] += 2 * g * np.array([2 * x[xi, 1] * ytilde[3] - 2 * x[xi, 2] * ytilde[2],
-                                                          2*x[xi, 2]*ytilde[ 1] -
-                                                          2*x[xi, 0]*ytilde[3],
-                                                          2*x[xi, 0]*ytilde[2] -
-                                                          2*x[xi, 1]*ytilde[1],
+                                                    2*x[xi, 2]*ytilde[1] - 2*x[xi, 0]*ytilde[3],
+                                                    2*x[xi, 0]*ytilde[2] - 2*x[xi, 1]*ytilde[1],      
                                                           -ytilde[1],
                                                           -ytilde[2],
                                                           -ytilde[3]])
@@ -118,17 +156,20 @@ def findanalytic_BT_newton(x, y, yp, q, weights, final_run=False):
         return -np.linalg.inv(H) @ L, l,  dLdr ,H
     return - np.linalg.inv(H) @ L
 
-def iterate_BT(x, y, weights):
+def iterate_BT(x, y, weights,tim):
     y=np.array([np.quaternion(*yi) for yi in y])
     q = np.quaternion(1)
     t = np.quaternion(0)
     while True:
-        bt = findanalytic_BT(x, y, weights)
+        tim.tick()
+        bt = fast_findanalytic_BT(x, y, weights)
+        bt1 = findanalytic_BT(x, y, weights)
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
         q = expb * q
-        if np.linalg.norm(bt) < 10 ** -2:
+        print('norms:',np.linalg.norm(bt),np.linalg.norm(bt1))
+        if np.linalg.norm(bt) < 10 ** -10:
             y=quaternion.as_float_array(y)
             return q, t, y
 
@@ -136,7 +177,8 @@ def iterate_BT(x, y, weights):
 def iterate_BT_newton(x, y,yp, weights, q, t):
     y=np.array([np.quaternion(*yi) for yi in y])
     for _ in range(10):
-        bt = findanalytic_BT_newton(x, y,yp,q, weights)
+        bt = findanalytic_BT_newton(x, y, yp, q, weights)
+        print('norm2:',np.linalg.norm(bt))
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
@@ -148,7 +190,26 @@ def iterate_BT_newton(x, y,yp, weights, q, t):
     q = expb * q
     j = parallel_transport_jacobian(q, t)
     y=quaternion.as_float_array(y)
-    return q, t, j, dLdg, dLdr, H,x,y
+    return q, t, j, dLdg, dLdr, H, x, y
+    
+
+def fast_iterate_BT_newton(x, y,xp,yp, weights, q, t):
+    y=np.array([np.quaternion(*yi) for yi in y])
+    for _ in range(10):
+        bt = fast_findanalytic_BT_newton(x, y, xp, yp, q, weights)
+        print('norm2:',np.linalg.norm(bt))
+        expb = np.exp(np.quaternion(*bt[:3]))
+        y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
+        t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
+        q = expb * q
+    bt, dLdg, dLdrx,dLdry, H = fast_findanalytic_BT_newton(x, y,xp,yp,q, weights, final_run = True)
+    expb = np.exp(np.quaternion(*bt[:3]))
+    y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
+    t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
+    q = expb * q
+    j = parallel_transport_jacobian(q, t)
+    y=quaternion.as_float_array(y)
+    return q, t, j, dLdg, dLdrx, dLdry, H, x, y
 
 def parallel_transport_jacobian(q, t):
     b = quaternion.as_float_array(np.log(q))[1:]
@@ -171,9 +232,9 @@ def init_R(zahl):
         x.append(np.quaternion(0, random.random(),
                                random.random(), random.random()+1))
     while True:
-        t = -1*np.quaternion(0, random.random(),
+        t = -0.001*np.quaternion(0, random.random(),
                            random.random(), random.random())
-        b = .1*np.quaternion(0, random.random(),
+        b = .001*np.quaternion(0, random.random(),
                              random.random(), random.random())
         q = np.exp(b)
         y = np.array([np.conjugate(q)*(xi+t)*q for xi in x])
@@ -194,8 +255,8 @@ def get_hessian_parts_R(xp, yp):
     
 
 def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
-    tim = timer()
-    tim.tick()
+    #tim = timer()
+    #tim.tick()
     # the first half of are r_x, the second half is r_y
     q = quaternion.as_float_array(q)
     t = quaternion.as_float_array(t)[1:]
@@ -208,7 +269,7 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
                 + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)\
                 - np.cos(a) * np.eye(3)
     hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
-    tim.tick()
+    #tim.tick()
     #H_r = np.zeros((2 * len(xp), 2 * len(yp)))
     #H_r[:len(xp),:len(xp)] = np.diag(np.einsum('i,ij->i', hdx_R, weights))
     #H_r[len(xp):, len(xp):] = np.diag(np.einsum('i,ji->i', hdy_R, weights))
@@ -220,18 +281,18 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     Hdx_R = np.einsum('i,ij->i', hdx_R, weights)
     Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
     Hnd_R = hnd_R * weights
-    print('got H')
-    tim.tick()
+    #print('got H')
+    #tim.tick()
     #Hnd_R_inv = np.einsum('ij,j->ij', np.linalg.inv(np.einsum('ij,j,kj->ik', hnd_R, 1 / Hdy_R, hnd_R) - np.diag(Hdx_R)) @ Hnd_R, 1 / Hdy_R)
     Hnd_R_inv = (np.linalg.inv(((hnd_R/ Hdy_R)@ np.transpose(hnd_R)) - np.diag(Hdx_R)) @ Hnd_R)/ Hdy_R
-    print(1)
-    tim.tick()
+    #print(1)
+    #tim.tick()
     Hdy_R_inv = np.einsum('i,ij->ij', 1 / Hdy_R, np.eye(len(xp)) - np.transpose(Hnd_R) @ Hnd_R_inv)
-    print(2)
-    tim.tick()
+    #print(2)
+    #tim.tick()
     Hdx_R_inv = np.einsum('i,ij->ij', 1 / Hdx_R, np.eye(len(xp)) - Hnd_R @ np.transpose(Hnd_R_inv))
-    print('got Hinv')
-    tim.tick()
+    #print('got Hinv')
+    #tim.tick()
     #H_inv = np.linalg.inv(H_r)
     l_x = 2*np.einsum('ij,j->i', xp, t)
     l_y_vec = t * np.cos(a) + (u @ t) * (1 - np.cos(a)) * u + np.sin(a) * np.cross(t, u)
@@ -241,10 +302,8 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     L_y = np.einsum('ji,i->i', weights, l_y)
     r_x = - Hdx_R_inv @ L_x - Hnd_R_inv @ L_y
     r_y = -L_x @ Hnd_R_inv - Hdy_R_inv @ L_y
-    print('done')
-    tim.tick()
-    w = 1 / 0
-    return w
+    #print('done')
+    #tim.tick()
     #H_invL = H_inv @ L
     """
     dr = np.einsum('ik,k,k,n->kni', H_inv[:,:len(xp)], hdx_R, H_invL[:len(xp)], np.ones(len(xp)))\
@@ -397,16 +456,28 @@ def iterate_BTR_newton(xp, y, weights, rq, rt):
     return bt, x, y
 
 
-def find_BT_from_BT(bt_true, xp, yp, weights):
+def find_BT_from_BT(bt_true, xp, yp, weights, tim):
+    print('in function')
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
-    hdx_R, hdy_R, hnd_raw_R=get_hessian_parts_R(xp,yp)
-    r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv=fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    tim.tick()
+    hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
+    tim.tick()
+    r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv = fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    tim.tick()
     #r, dr ,H,L= findanalytic_R(q, t, weights, xp, yp)
     x = np.transpose(r_x * np.transpose(xp))
     y = np.transpose(r_y * np.transpose(yp))
-    q, t, y = iterate_BT(x, y, weights)
-    q, t, j, dLdg, dLdr, H, x, y = iterate_BT_newton(x, y, yp, weights, q, t)
+    q, t, y = iterate_BT(x, y, weights,tim)
+    tim.tick()
+    #q, t, j, dLdg, dLdr, H, x, y = iterate_BT_newton(x, y, yp, weights, q, t)
+    tim.tick()
+    qf, tf, jf, dLdgf, dLdrx, dLdry, Hf, xf, yf = fast_iterate_BT_newton(x, y, xp, yp, weights, q, t)
+    tim.tick()
+    dLtest = np.zeros((2 * len(x), 6))
+    dLtest[::2,:] = dLdrx
+    dLtest[1::2,:] = dLdry
+    
     dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,kl->ijl', dr, dLdr), -np.linalg.inv(H), j)
     bt = np.concatenate((quaternion.as_float_array(np.log(q))[1:], quaternion.as_float_array(t)[1:]))
     return bt, dbt
@@ -438,7 +509,10 @@ def numericdiff(f, inpt, index):
 
 
 def tester():
+    tim = timer()
+    tim.tick()
     x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(10)
+    tim.tick()
     xq = np.array([np.quaternion(*xi) for xi in x])
     yq = np.array([np.quaternion(*yi) for yi in y])
 
@@ -446,9 +520,9 @@ def tester():
 
     bt_true = np.concatenate((quaternion.as_float_array(
         b)[1:], quaternion.as_float_array(t_true)[1:]))
-    q, b = find_BT_from_BT(bt_true, xp, yp, weights)
+    q, b = find_BT_from_BT(bt_true, xp, yp, weights,tim)
     #a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
 
     #print(np.max(a[0]-b))
 
-#tester()
+tester()
