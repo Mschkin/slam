@@ -254,9 +254,6 @@ def get_hessian_parts_R(xp, yp):
     
 
 def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
-    #tim = timer()
-    #tim.tick()
-    # the first half of are r_x, the second half is r_y
     q = quaternion.as_float_array(q)
     t = quaternion.as_float_array(t)[1:]
     a = 2 * np.arccos(q[0])
@@ -268,50 +265,19 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
                 + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)\
                 - np.cos(a) * np.eye(3)
     hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
-    #tim.tick()
-    #H_r = np.zeros((2 * len(xp), 2 * len(yp)))
-    #H_r[:len(xp),:len(xp)] = np.diag(np.einsum('i,ij->i', hdx_R, weights))
-    #H_r[len(xp):, len(xp):] = np.diag(np.einsum('i,ji->i', hdy_R, weights))
-    #H_r[:len(xp),len(xp):] = hnd_R * weights
-    #H_r[len(xp):, :len(xp)] = np.transpose(H_r[:len(xp),len(xp):])
-    #Y=(B C^{-1}B^\dagger-A)^{-1}B C^{-1}
-    #Z=C^{-1}(1-B^\dagger Y)
-    #X=A^{-1}(1-B Y^\dagger)
     Hdx_R = np.einsum('i,ij->i', hdx_R, weights)
     Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
     Hnd_R = hnd_R * weights
-    #print('got H')
-    #tim.tick()
-    #Hnd_R_inv = np.einsum('ij,j->ij', np.linalg.inv(np.einsum('ij,j,kj->ik', Hnd_R, 1 / Hdy_R, Hnd_R) - np.diag(Hdx_R)) @ Hnd_R, 1 / Hdy_R)
     Hnd_R_inv = (np.linalg.inv(((Hnd_R/ Hdy_R)@ np.transpose(Hnd_R)) - np.diag(Hdx_R)) @ Hnd_R)/ Hdy_R
-    #print(1)
-    #tim.tick()
     Hdy_R_inv = np.einsum('i,ij->ij', 1 / Hdy_R, np.eye(len(xp)) - np.transpose(Hnd_R) @ Hnd_R_inv)
-    #print(2)
-    #tim.tick()
     Hdx_R_inv = np.einsum('i,ij->ij', 1 / Hdx_R, np.eye(len(xp)) - Hnd_R @ np.transpose(Hnd_R_inv))
-    #print('got Hinv')
-    #tim.tick()
-    #H_inv = np.linalg.inv(H_r)
     l_x = 2*np.einsum('ij,j->i', xp, t)
     l_y_vec = t * np.cos(a) + (u @ t) * (1 - np.cos(a)) * u + np.sin(a) * np.cross(t, u)
     l_y = -2 * np.einsum('ij,j->i', yp, l_y_vec)
-    #l = np.concatenate((l_x, l_y))
     L_x = np.einsum('ij,i->i', weights, l_x)
     L_y = np.einsum('ji,i->i', weights, l_y)
     r_x = - Hdx_R_inv @ L_x - Hnd_R_inv @ L_y
     r_y = -L_x @ Hnd_R_inv - Hdy_R_inv @ L_y
-    #print('done')
-    #tim.tick()
-    #H_invL = H_inv @ L
-    """
-    dr = np.einsum('ik,k,k,n->kni', H_inv[:,:len(xp)], hdx_R, H_invL[:len(xp)], np.ones(len(xp)))\
-        + np.einsum('ik,kn,n->kni', H_inv[:,:len(xp)], hnd_R, H_invL[len(xp):])\
-        + np.einsum('in,kn,k->kni', H_inv[:, len(xp):], hnd_R, H_invL[:len(xp)])\
-        + np.einsum('in,n,n,k->kni', H_inv[:, len(xp):], hdy_R, H_invL[len(xp):], np.ones(len(xp)))\
-        - np.einsum('ij,j,k->jki', H_inv[:,:len(xp)], l_x, np.ones(len(xp)))\
-        - np.einsum('ik,k,j->jki', H_inv[:,len(xp):], l_y, np.ones(len(xp)))
-    """
     return r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv
             
 
@@ -459,31 +425,11 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
     q = np.exp(np.quaternion(*bt_true[:3]))
     t = np.quaternion(*bt_true[3:])
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    H_invL, drold, _, _, H_inv = findanalytic_R(q, t, weights, xp, yp)
     r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv = fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     x = np.transpose(r_x * np.transpose(xp))
     y = np.transpose(r_y * np.transpose(yp))
     q, t, y = iterate_BT(x, y, weights)
     qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, xf, yf = fast_iterate_BT_newton(x, y, xp, yp, weights, q, t,r_y)
-    qo, to, jo, dLdgo, dLdr, H_bt_invo, xo, yo = iterate_BT_newton(x, y, yp, weights, q, t)
-    """
-    print('q',qf - qo)
-    print('t',tf - to)
-    print('j',np.linalg.norm(j - jo))
-    print('dldg',np.linalg.norm(dLdg-dLdgo))
-    print('dldrx',np.linalg.norm(dLdr[::2, :] - dLdrx))
-    print('dldry', np.linalg.norm(dLdr[1::2, :] - dLdry))
-    print('hbtinv',np.linalg.norm(H_bt_inv - H_bt_invo))
-    print('x',np.linalg.norm(xf - xo))
-    print('y',np.linalg.norm(yf - yo))
-    """
-    dr = -np.einsum('ik,k,k,n->kni', H_inv[:,::2], hdx_R, H_invL[::2], np.ones(len(xp)))\
-         - np.einsum('ik,kn,n->kni', H_inv[:,::2], hnd_R, H_invL[1::2])\
-         - np.einsum('in,kn,k->kni', H_inv[:, 1::2], hnd_R, H_invL[::2])\
-         - np.einsum('in,n,n,k->kni', H_inv[:, 1::2], hdy_R, H_invL[1::2], np.ones(len(xp)))\
-         - np.einsum('ij,j,k->jki', H_inv[:,::2], l_x, np.ones(len(xp)))\
-         - np.einsum('ik,k,j->jki', H_inv[:, 1::2], l_y, np.ones(len(xp)))
-    #print('dr:', np.max(dr[:,:, : ] - drold[:,:, :]))
     dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + np.transpose(dLdry) @ np.transpose(Hnd_R_inv)
     dLdrH_inv_y = np.transpose(dLdrx) @ Hnd_R_inv + np.transpose(dLdry) @ Hdy_R_inv
     dLrg = - np.einsum('ij,k->jki',  dLdrH_inv_x * (hdx_R * r_x), np.ones(len(yp))) \
@@ -492,21 +438,8 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
             - np.einsum('ij,k->kji', dLdrH_inv_y * (hdy_R * r_y), np.ones(len(xp))) \
             - np.einsum('ik,j->kji', dLdrH_inv_x * l_x, np.ones(len(yp))) \
             - np.einsum('ij,k->kji', dLdrH_inv_y * l_y, np.ones(len(xp)))
-    """
-    dLdrH_inv_x = np.einsum('ij,ik->jk',dLdrx,Hdx_R_inv) + np.einsum('ij,ki->jk',dLdry,Hnd_R_inv)
-    dLdrH_inv_y = np.einsum('ij,ik->jk',dLdrx,Hnd_R_inv) + np.einsum('ij,ik->jk',dLdry,Hdy_R_inv)
-    dLrg =  - np.einsum('ij,j,j,k->jki',  dLdrH_inv_x  ,hdx_R , r_x, np.ones(len(yp))) \
-            - np.einsum('ij,jk,k->jki',dLdrH_inv_x, hnd_R , r_y) \
-            - np.einsum('ij,kj,k->kji', dLdrH_inv_y, hnd_R , r_x) \
-            - np.einsum('ij,j,j,k->kji', dLdrH_inv_y , hdy_R , r_y, np.ones(len(xp))) \
-            - np.einsum('ik,k,j->kji', dLdrH_inv_x, l_x, np.ones(len(yp))) \
-            - np.einsum('ij,j,k->kji', dLdrH_inv_y , l_y, np.ones(len(xp)))
-    """
-    #print('dlrg:', np.max(np.einsum('ij,kli->klj', dLdr, dr)-dLrg))
     dbt = np.einsum('ijk,km->ijm', dLdg + dLrg, -H_bt_inv @ j)
-    dbt = np.einsum('ijk,kl,lm->ijm', dLdg + np.einsum('ijk,kl->ijl', drold, dLdr), -np.linalg.inv(H_bt_invo), j)
-    bt = np.concatenate((quaternion.as_float_array(np.log(q))[1:], quaternion.as_float_array(t)[1:]))
-    #print(bt-bt_true)
+    bt = np.concatenate((quaternion.as_float_array(np.log(qf))[1:], quaternion.as_float_array(tf)[1:]))
     return bt, dbt
 
 
