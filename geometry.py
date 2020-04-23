@@ -13,9 +13,9 @@ import time
 # 
 #
 # save weights row and column sum
-# build new dr
-# find analytic bt does not converge quadraticaly
 # check why we loose 6 digit in find analytic
+# check if double or float is faster
+# look at c linalg libs
 
 
 random.seed(126798)
@@ -251,6 +251,8 @@ def get_hessian_parts_R(xp, yp):
     hdy_R = 2 * np.einsum('ij,ij->i', yp, yp)
     hnd_raw_R = np.einsum('ij,kl->ikjl', xp, yp)
     return hdx_R, hdy_R, hnd_raw_R
+
+
     
 
 def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
@@ -478,4 +480,4 @@ def tester():
     a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
     print(np.max(b-a[0]))
 
-tester()
+#tester()

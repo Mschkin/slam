@@ -1,0 +1,1 @@
+void get_hessian_parts_R_c(size_t length,int xp[][3],int yp[][3],int hdx_R[],int hdy_R[],int hnd_raw_R[]);
