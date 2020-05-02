@@ -5,6 +5,7 @@ import copy
 import sys
 
 """
+
 todos:
 try to identify interesting points: gradiants, laplace, derivatives harris
 find matching corners and vpoint
