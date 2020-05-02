@@ -123,7 +123,7 @@ def test_gethc(xp, yp):
     print("4")
     fast_findanalytic_BT_newton_c(x_p, y_p, xp_p, yp_p, q_p, weights_p,
                                   r_yp,   True, bt_p, l_p, dLdrx_p, dLdry_p,  Hinv_p)
-    print("5")
+    print("5 ")
     print(bt_c)
     print(np.max(l_c))
     print(6)
