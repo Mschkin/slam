@@ -9,27 +9,20 @@ import time
 #import pyautogui
 #import cv2
 import sys
+import re
 
-class timer:
-    lastcall = 0
-    
-    def __init__(self):
-        self.lastcall = time.perf_counter()
-    
-    def tick(self):
-        call = time.perf_counter()
-        diff = call - self.lastcall
-        self.lastcall = call
-        return diff
-        
+reg1 = re.compile(r'<(?P<MailAdress>[^<>@]+@[^<>@]+)>')
+reg = re.compile(
+    r'Bestellung (?P<AuftragsNummer>\d+), Kundennummer (?P<KundenNummer>\d+), (?P<Name>[^\d]+)')
+print(reg.search("Fwd: Bestellung 14490, Kundennummer 1017792, Nicole Bleckmann"))
+print(reg.findall("Fwd: Bestellung 14490, Kundennummer 1017792, Nicole Bleckmann"))
+print(reg.match("asfd"))
+#reg = re.compile(r'<(?P<MailAdress>*?)>')
+# print(reg.match("asdfjkbasdf<service@parfuemerie-noeth-shop.de>pjibsihupafewbu"))
 
-t = timer()
-print(t.tick())
-#a = np.array([[1, 2], [3, 4]])
-#b=1/np.array([1,2])
-#print(a / b)
-#print(np.einsum('ij,j->ij',a,b))
-
+#a = np.zeros(4)
+# print(a)
+#re.compile(r'\d+ \(UID (?P<uid>\d+)\)')
 
 """
 a = np.array([1, 2, 3])
