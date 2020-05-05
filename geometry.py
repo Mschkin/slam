@@ -202,10 +202,6 @@ def iterate_BT_newton(x, y, yp, weights, q, t):
         q = expb * q
     bt, dLdg, dLdr, H_inv = findanalytic_BT_newton(
         x, y, yp, q, weights, final_run=True)
-    expb = np.exp(np.quaternion(*bt[:3]))
-    y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
-    t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
-    q = expb * q
     j = parallel_transport_jacobian(q, t)
     y = quaternion.as_float_array(y)
     return q, t, j, dLdg, dLdr, H_inv, x, y
@@ -214,20 +210,21 @@ def iterate_BT_newton(x, y, yp, weights, q, t):
 def fast_iterate_BT_newton(x, y, xp, yp, weights, q, t, r_y):
     y = np.array([np.quaternion(*yi) for yi in y])
     for _ in range(3):
-        bt = fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, r_y, t)
+        # print("shape of x", np.shape(x), "\n shape of y", np.shape(y), "\nshape of xp ", np.shape(xp), "\n shape of yp", np.shape(
+        #    yp), "\nshape of q", np.shape(q), "\nshape of weights ", np.shape(weights), "\nshape of r_y", np.shape(r_y), "\nshape of t", np.shape(t))
+        # x, y, xp, yp, q, weights, r_y, final_run=False)
+        bt = fast_findanalytic_BT_newton(
+            x, y, xp, yp, q, weights, r_y, final_run=False)
+        #print("shape of bt", np.shape(bt))
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
         q = expb * q
     bt, dLdg, dLdrx, dLdry, H_inv = fast_findanalytic_BT_newton(
-        x, y, xp, yp, q, weights, r_y, t, final_run=True)
-    expb = np.exp(np.quaternion(*bt[:3]))
-    y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
-    t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
-    q = expb * q
+        x, y, xp, yp, q, weights, r_y,  final_run=True)
     j = parallel_transport_jacobian(q, t)
     y = quaternion.as_float_array(y)
-    return q, t, j, dLdg, dLdrx, dLdry, H_inv, x, y
+    return q, t, j, dLdg, dLdrx, dLdry, H_inv,  y
 
 
 def parallel_transport_jacobian(q, t):
@@ -457,7 +454,7 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
     x = np.transpose(r_x * np.transpose(xp))
     y = np.transpose(r_y * np.transpose(yp))
     q, t, y = iterate_BT(x, y, weights)
-    qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, xf, yf = fast_iterate_BT_newton(
+    qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, yf = fast_iterate_BT_newton(
         x, y, xp, yp, weights, q, t, r_y)
     dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + \
         np.transpose(dLdry) @ np.transpose(Hnd_R_inv)

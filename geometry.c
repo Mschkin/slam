@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <gsl/gsl_linalg.h>
+#include <stdbool.h>
 
 #define sqrtlength 9
 #define const_length sqrtlength *sqrtlength
@@ -41,6 +42,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
     double *Hdy_R = malloc(const_length * sizeof(double));
     double *Hnd_R = malloc(const_length * const_length * sizeof(double));
     double *Hnd_R_inv_inter = malloc(const_length * const_length * sizeof(double));
+
 #define Hnd_R(i, j) Hnd_R[i * const_length + j]
 #define Hnd_R_inv_inter(i, j) Hnd_R_inv_inter[i * const_length + j]
     for (int i = 0; i < const_length; i++)
@@ -149,6 +151,12 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
             r_y[i] -= L_x[j] * Hnd_R_inv(j, i) + Hdy_R_inv(i, j) * L_y[j];
         }
     }
+    free(Hdx_R);
+    free(Hdy_R);
+    free(Hnd_R);
+    free(Hnd_R_inv_inter);
+    free(L_x);
+    free(L_y);
 #undef hnd_raw_R
 #undef Hnd_R
 #undef Hnd_R_inv_inter
@@ -368,6 +376,7 @@ void iterate_BT_c(double *x, double *y, double *weights, double q[4], double t[3
     }
 #undef y
 }
+
 /*
 def fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, r_y, t, final_run=False):
     y = quaternion.as_float_array(y)[:, 1:]
@@ -402,7 +411,7 @@ def fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, r_y, t, final_run=Fals
 */
 
 void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
-                                   double *r_y, _Bool final_run, double bt[6], double *l, double *dLdrx, double *dLdry, double Hinv[6][6])
+                                   double *r_y, _Bool final_run, double bt[6], double *dLdg, double *dLdrx, double *dLdry, double Hinv[6][6])
 {
 //has to be zero!  dLdrx, dLdry,
 #define x(i, j) x[3 * (i) + (j)]
@@ -410,14 +419,15 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
 #define y(i, j) y[3 * (i) + (j)]
 #define yp(i, j) yp[3 * (i) + (j)]
 #define weights(i, j) weights[(i)*const_length + (j)]
-#define l(i, j, k) l[(i)*const_length * 6 + (j)*6 + k]
+#define dLdg(i, j, k) dLdg[(i)*const_length * 6 + (j)*6 + k]
 #define dLdrx(i, j) dLdrx[(i)*6 + (j)]
 #define dLdry(i, j) dLdry[(i)*6 + (j)]
+
     double H[6][6] = {{0}};
     double L[6] = {0};
-    //2    h_bb = 8 * np.einsum('ij,mj,kl->imkl', x, y, np.eye(3)) - 4 * \
-    //2        np.einsum('ij,mk->imjk', x, y)-4 * np.einsum('ij,mk->imkj', x, y)
-    //    H[:3, :3] = np.einsum('ij,jkl->kl', weights, h_bb)
+    //  h_bb = 8 * np.einsum('ij,mj,kl->imkl', x, y, np.eye(3)) - 4 * \
+ //       np.einsum('ij,mk->imjk', x, y)-4 * np.einsum('ij,mk->imkj', x, y)
+    //    H[:3, :3] = np.einsum('ij,ijkl->kl', weights, h_bb)
     //    h_bt = 4 * np.einsum('jm,klm->jkl', y, np.array([[[LeviCivita(
     //        i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
     //    H[:3, 3:] = np.einsum('ij,jkl->kl', weights, h_bt)
@@ -433,9 +443,9 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
             {
                 for (size_t l = 0; l < 3; l++)
                 {
-                    H[k][l] -= 4 * weights(i, j) * (y(j, k) * x(j, l) + x(j, k) * y(j, l));
+                    H[k][l] -= 4 * weights(i, j) * (y(j, k) * x(i, l) + x(i, k) * y(j, l));
                 }
-                H[k][k] += 8 * weights(i, j) * (y(j, 0) * y(j, 0) + y(j, 1) * y(j, 1) + y(j, 2) * y(j, 2));
+                H[k][k] += 8 * weights(i, j) * (x(i, 0) * y(j, 0) + x(i, 1) * y(j, 1) + x(i, 2) * y(j, 2));
             }
             weight_sum += weights(i, j);
             //upper right
@@ -451,20 +461,21 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
             //                   for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
             //    l[:, :, 3:] = 2 * (np.reshape(np.hstack(len(x) * [x]), (len(x), len(x), 3)) -
             //    L = np.einsum('ij,ijk->k', weights, l)
-            l(i, j, 0) = 4 * (x(i, 1) * y(j, 2) - x(i, 2) * y(j, 1));
-            L[0] += weights(i, j) * l(i, j, 0);
-            l(i, j, 1) = 4 * (x(i, 2) * y(j, 0) - x(i, 0) * y(j, 2));
-            L[1] += weights(i, j) * l(i, j, 1);
-            l(i, j, 2) = 4 * (x(i, 0) * y(j, 1) - x(i, 1) * y(j, 0));
-            L[2] += weights(i, j) * l(i, j, 2);
-            l(i, j, 3) = 2 * (x(i, 0) - y(j, 0));
-            L[3] += weights(i, j) * l(i, j, 3);
-            l(i, j, 4) = 2 * (x(i, 1) - y(j, 1));
-            L[4] += weights(i, j) * l(i, j, 4);
-            l(i, j, 5) = 2 * (x(i, 2) - y(j, 2));
-            L[5] += weights(i, j) * l(i, j, 5);
+            dLdg(i, j, 0) = 4 * (x(i, 1) * y(j, 2) - x(i, 2) * y(j, 1));
+            L[0] += weights(i, j) * dLdg(i, j, 0);
+            dLdg(i, j, 1) = 4 * (x(i, 2) * y(j, 0) - x(i, 0) * y(j, 2));
+            L[1] += weights(i, j) * dLdg(i, j, 1);
+            dLdg(i, j, 2) = 4 * (x(i, 0) * y(j, 1) - x(i, 1) * y(j, 0));
+            L[2] += weights(i, j) * dLdg(i, j, 2);
+            dLdg(i, j, 3) = 2 * (x(i, 0) - y(j, 0));
+            L[3] += weights(i, j) * dLdg(i, j, 3);
+            dLdg(i, j, 4) = 2 * (x(i, 1) - y(j, 1));
+            L[4] += weights(i, j) * dLdg(i, j, 4);
+            dLdg(i, j, 5) = 2 * (x(i, 2) - y(j, 2));
+            L[5] += weights(i, j) * dLdg(i, j, 5);
         }
     }
+
     //lower left
     H[4][0] = H[0][4];
     H[5][0] = H[0][5];
@@ -475,13 +486,16 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
     H[3][3] = 2 * weight_sum;
     H[4][4] = 2 * weight_sum;
     H[5][5] = 2 * weight_sum;
+
     //  return - np.linalg.inv(H) @ L
+
     int s;
     gsl_matrix_view m = gsl_matrix_view_array(H[0], 6, 6);
     gsl_permutation *p = gsl_permutation_alloc(6);
     gsl_linalg_LU_decomp(&m.matrix, p, &s);
     gsl_linalg_LU_invert(&m.matrix, p, &m.matrix);
     gsl_permutation_free(p);
+
     for (size_t k = 0; k < 6; k++)
     {
         bt[k] = 0;
@@ -491,20 +505,20 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
             Hinv[k][l] = H[k][l];
         }
     }
-    /*
-    if final_run:
-            dLdrx = np.zeros((len(x), 6))
-            dLdrx[:, :3] = 4 * np.einsum('ij,ik,jl,mkl->im', weights, xp, y, np.array(
-                [[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
-            dLdrx[:, 3:] = 2 * np.einsum('ij,ik->ik', weights, xp)
-            ytilde = quaternion.as_float_array(
-                [q * np.quaternion(*yi) * np.conjugate(q) for yi in yp])[:, 1:]
-            dLdry = np.zeros((len(y), 6))
-            dLdry[:, :3] = 4 * np.einsum('ij,ik,jl,mkl->jm', weights, x, ytilde, np.array(
-                [[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
-            dLdry[:, 3:] = - 2 * np.einsum('ij,jk->jk', weights, ytilde)
-            return - np.linalg.inv(H) @ L, l, dLdrx, dLdry,  np.linalg.inv(H)
-    */
+
+    //if final_run:
+    //        dLdrx = np.zeros((len(x), 6))
+    //        dLdrx[:, :3] = 4 * np.einsum('ij,ik,jl,mkl->im', weights, xp, y, np.array(
+    //            [[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    //        dLdrx[:, 3:] = 2 * np.einsum('ij,ik->ik', weights, xp)
+    //        ytilde = quaternion.as_float_array(
+    //            [q * np.quaternion(*yi) * np.conjugate(q) for yi in yp])[:, 1:]
+    //        dLdry = np.zeros((len(y), 6))
+    //        dLdry[:, :3] = 4 * np.einsum('ij,ik,jl,mkl->jm', weights, x, ytilde, np.array(
+    //            [[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
+    //        dLdry[:, 3:] = - 2 * np.einsum('ij,jk->jk', weights, ytilde)
+    //        return - np.linalg.inv(H) @ L, l, dLdrx, dLdry,  np.linalg.inv(H)
+
     if (final_run)
     {
         double ytilde[3];
@@ -512,9 +526,9 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
 
         for (size_t i = 0; i < const_length; i++)
         {
-            ytilde[0] = y(i, 0);
-            ytilde[1] = y(i, 1);
-            ytilde[1] = y(i, 2);
+            ytilde[0] = yp(i, 0);
+            ytilde[1] = yp(i, 1);
+            ytilde[2] = yp(i, 2);
             rot(ytilde, q, q_con);
             for (size_t j = 0; j < const_length; j++)
             {
@@ -530,27 +544,332 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
             dLdrx(i, 4) = 2 * xp(i, 1) * dLdrx(i, 3);
             dLdrx(i, 5) = 2 * xp(i, 2) * dLdrx(i, 3);
             dLdrx(i, 3) *= 2 * xp(i, 0);
-            dLdrx(i, 4) = -2 * ytilde[1] * dLdry(i, 3);
-            dLdrx(i, 5) = -2 * ytilde[2] * dLdry(i, 3);
-            dLdrx(i, 3) *= -2 * ytilde[0];
+            dLdry(i, 4) = -2 * ytilde[1] * dLdry(i, 3);
+            dLdry(i, 5) = -2 * ytilde[2] * dLdry(i, 3);
+            dLdry(i, 3) *= -2 * ytilde[0];
         }
     }
+
 #undef x
 #undef y
 #undef weights
 #undef xp
 #undef yp
-#undef l
+#undef dLdg
 #undef dLdrx
 #undef dLdry
+}
+
+/*
+def parallel_transport_jacobian(q, t):
+    b = quaternion.as_float_array(np.log(q))[1:]
+    bb = np.sqrt(b @ b)
+    t = quaternion.as_float_array(t)[1:]
+    j = np.zeros((6, 6))
+    if bb != 0:
+        bh = b / bb
+        j[:3, :3] = ([[0, -bh[2], bh[1]], [bh[2], 0, -bh[0]], [-bh[1], bh[0], 0]] + 1 / np.tan(bb) * (np.eye(3) -
+            np.tensordot(bh, bh, axes=0))) * np.sign(np.sin(bb)) * np.arccos(np.cos(bb)) + np.tensordot(bh, bh, axes=0)
+    else:
+        j[:3, :3] = np.eye(3)
+    j[:3, 3:] = 2 * \
+        np.array([[0, -t[2], t[1]], [t[2], 0, -t[0]], [-t[1], t[0], 0]])
+    j[3:, 3:] = np.eye(3)
+    return j
+*/
+int sign_sin(double bb)
+{
+    if (sin(bb) > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return -1;
+    }
+}
+void parallel_transport_jacobian_c(double q[4], double t[3], double j[6][6])
+{
+    //quaternion logarithm
+    //b = quaternion.as_float_array(np.log(q))[1:]
+    double qvb = sqrt(q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+    if (qvb != 0)
+    {
+        double b[3] = {q[1] / qvb * acos(q[0]), q[2] / qvb * acos(q[0]), q[3] / qvb * acos(q[0])};
+        //bb = np.sqrt(b @ b)
+        double bb = sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
+        //bh = b / bb
+        double bh[3] = {b[0] / bb, b[1] / bb, b[2] / bb};
+        //        j[:3, :3] = ([[0, -bh[2], bh[1]], [bh[2], 0, -bh[0]], [-bh[1], bh[0], 0]] + 1 / np.tan(bb) * (np.eye(3) -
+        //            np.tensordot(bh, bh, axes=0))) * np.sign(np.sin(bb)) * np.arccos(np.cos(bb)) + np.tensordot(bh, bh, axes=0)
+        //assume bb<\pi
+        int sign = sign_sin(bb);
+        double tanvalue = tan(bb);
+        j[0][0] = (1 - bh[0] * bh[0]) / tanvalue * sign * bb + bh[0] * bh[0];
+        j[0][1] = (-bh[2] - bh[0] * bh[1] / tanvalue) * bb * sign + bh[0] * bh[1];
+        j[0][2] = (bh[1] - bh[0] * bh[2] / tanvalue) * bb * sign + bh[0] * bh[2];
+        j[1][0] = (bh[2] - bh[1] * bh[0] / tanvalue) * bb * sign + bh[1] * bh[0];
+        j[1][1] = (1 - bh[1] * bh[1]) / tanvalue * sign * bb + bh[1] * bh[1];
+        j[1][2] = (-bh[0] - bh[1] * bh[2] / tanvalue) * bb * sign + bh[1] * bh[2];
+        j[2][0] = (-bh[1] - bh[2] * bh[0] / tanvalue) * bb * sign + bh[2] * bh[0];
+        j[2][1] = (bh[0] - bh[2] * bh[1] / tanvalue) * bb * sign + bh[2] * bh[1];
+        j[2][2] = (1 - bh[2] * bh[2]) / tanvalue * sign * bb + bh[2] * bh[2];
+    }
+    else
+    { //    else:
+        //j[:3, :3] = np.eye(3)
+        j[0][0] = 1;
+        j[1][1] = 1;
+        j[2][2] = 1;
+    }
+    //    j[:3, 3:] = 2 * np.array([[0, -t[2], t[1]], [t[2], 0, -t[0]], [-t[1], t[0], 0]])
+    j[0][4] = -2 * t[2];
+    j[0][5] = 2 * t[1];
+    j[1][3] = 2 * t[2];
+    j[1][5] = -2 * t[0];
+    j[2][3] = -2 * t[1];
+    j[2][4] = 2 * t[0];
+    //j[3:, 3:] = np.eye(3)
+    j[3][3] = 1;
+    j[4][4] = 1;
+    j[5][5] = 1;
+}
+
+/*
+def fast_iterate_BT_newton(x, y, xp, yp, weights, q, t, r_y):
+    y = np.array([np.quaternion(*yi) for yi in y])
+    for _ in range(3):
+        bt = fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, r_y, t)
+        expb = np.exp(np.quaternion(*bt[:3]))
+        y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
+        t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
+        q = expb * q
+    bt, dLdg, dLdrx, dLdry, H_inv = fast_findanalytic_BT_newton(
+        x, y, xp, yp, q, weights, r_y, t, final_run=True)
+    j = parallel_transport_jacobian(q, t)
+    y = quaternion.as_float_array(y)
+    return q, t, j, dLdg, dLdrx, dLdry, H_inv, x, y
+*/
+void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights, double q[4], double t[3], double *r_y, double j[6][6], double *dLdg, double *dLdrx, double *dLdry, double H_inv[6][6])
+{
+    //j==0 initialisiert!
+#define y(i, j) y[3 * (i) + (j)]
+    double bt[6] = {0};
+    double expb[4];
+    double b_abs;
+
+    for (size_t u = 0; u < 3; u++)
+    {
+        //bt = fast_findanalytic_BT(x, y, weights)
+        fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, false, bt, dLdg, dLdrx, dLdry, H_inv);
+        //expb = np.exp(np.quaternion(*bt[:3]))
+        b_abs = sqrt(bt[0] * bt[0] + bt[1] * bt[1] + bt[2] * bt[2]);
+        expb[0] = cos(b_abs);
+        expb[1] = bt[0] * sin(b_abs) / b_abs;
+        expb[2] = bt[1] * sin(b_abs) / b_abs;
+        expb[3] = bt[2] * sin(b_abs) / b_abs;
+        double expb_conj[4] = {expb[0], -expb[1], -expb[2], -expb[3]};
+        //y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
+        double dummyQuat[4] = {0};
+        for (size_t k = 0; k < const_length; k++)
+        {
+            rot(&(y(k, 0)), expb, expb_conj);
+            y(k, 0) -= bt[3];
+            y(k, 1) -= bt[4];
+            y(k, 2) -= bt[5];
+        }
+        //t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
+        rot(t, expb, expb_conj);
+        t[0] += bt[3];
+        t[1] += bt[4];
+        t[2] += bt[5];
+        //q = expb * q
+        q_mult(expb, q, dummyQuat);
+        q[0] = dummyQuat[0];
+        q[1] = dummyQuat[1];
+        q[2] = dummyQuat[2];
+        q[3] = dummyQuat[3];
+    }
+    //    bt, dLdg, dLdrx, dLdry, H_inv = fast_findanalytic_BT_newton(
+    //x, y, xp, yp, q, weights, r_y, t, final_run=True)
+    fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, true, bt, dLdg, dLdrx, dLdry, H_inv);
+    //    j = parallel_transport_jacobian(q, t)
+    parallel_transport_jacobian_c(q, t, j);
+#undef y
+}
+
+/*
+def find_BT_from_BT(bt_true, xp, yp, weights):
+    q = np.exp(np.quaternion(*bt_true[:3]))
+    t = np.quaternion(*bt_true[3:])
+    hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
+    r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv = fast_findanalytic_R(
+        q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    x = np.transpose(r_x * np.transpose(xp))
+    y = np.transpose(r_y * np.transpose(yp))
+    q, t, y = iterate_BT(x, y, weights)
+    qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, yf = fast_iterate_BT_newton(
+        x, y, xp, yp, weights, q, t, r_y)
+    dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + \
+        np.transpose(dLdry) @ np.transpose(Hnd_R_inv)
+    dLdrH_inv_y = np.transpose(dLdrx) @ Hnd_R_inv + \
+        np.transpose(dLdry) @ Hdy_R_inv
+    dLrg = - np.einsum('ij,k->jki',  dLdrH_inv_x * (hdx_R * r_x), np.ones(len(yp))) \
+        - np.einsum('ij,jk->jki', dLdrH_inv_x, (hnd_R * r_y)) \
+        - np.einsum('ij,jk->kji', dLdrH_inv_y, (np.transpose(hnd_R) * r_x)) \
+        - np.einsum('ij,k->kji', dLdrH_inv_y * (hdy_R * r_y), np.ones(len(xp))) \
+        - np.einsum('ik,j->kji', dLdrH_inv_x * l_x, np.ones(len(yp))) \
+        - np.einsum('ij,k->kji', dLdrH_inv_y * l_y, np.ones(len(xp)))
+    dbt = np.einsum('ijk,km->ijm', dLdg + dLrg, -H_bt_inv @ j)
+    bt = np.concatenate((quaternion.as_float_array(np.log(qf))[
+                        1:], quaternion.as_float_array(tf)[1:]))
+    return bt, dbt
+*/
+void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, double bt[6], double *dbt)
+{
+    //q = np.exp(np.quaternion(*bt_true[:3]))
+    //t = np.quaternion(*bt_true[3:])
+    double b_abs = sqrt(bt_true[0] * bt_true[0] + bt_true[1] * bt_true[1] + bt_true[2] * bt_true[2]);
+    double q_true[4] = {cos(b_abs), bt_true[0] * sin(b_abs) / b_abs, bt_true[1] * sin(b_abs) / b_abs, bt_true[2] * sin(b_abs) / b_abs};
+    double t_true[3] = {bt_true[3], bt_true[4], bt_true[5]};
+    //hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
+    int *hdx_R = malloc(const_length * sizeof(int));
+    int *hdy_R = malloc(const_length * sizeof(int));
+    int *hnd_raw_R = malloc(const_length * const_length * 9 * sizeof(int));
+    if (hnd_raw_R == NULL)
+    {
+        printf("nicht genug memory!!\n");
+    }
+
+    get_hessian_parts_R_c(xp, yp, hdx_R, hdy_R, hnd_raw_R);
+    double *hnd_R = (double *)malloc(const_length * const_length * sizeof(double));
+    double *Hdx_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
+    double *Hdy_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
+    double *Hnd_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
+    double *r_x = (double *)malloc(const_length * sizeof(double));
+    double *r_y = (double *)malloc(const_length * sizeof(double));
+    double *l_x = (double *)malloc(const_length * sizeof(double));
+    double *l_y = (double *)malloc(const_length * sizeof(double));
+    //r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv = fast_findanalytic_R(
+    //        q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    fast_findanalytic_R_c(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv);
+
+    //    x = np.transpose(r_x * np.transpose(xp))
+    //    y = np.transpose(r_y * np.transpose(yp))
+    double q[4];
+    double t[3];
+    double *x = malloc(const_length * 3 * sizeof(double));
+    double *y = malloc(const_length * 3 * sizeof(double));
+#define x(z, y) x[3 * (z) + (y)]
+#define xp(z, y) xp[3 * (z) + (y)]
+#define y(i, j) y[3 * (i) + (j)]
+#define yp(i, j) yp[3 * (i) + (j)]
+    for (size_t i = 0; i < const_length; i++)
+    {
+        x(i, 0) = r_x[i] * xp(i, 0);
+        x(i, 1) = r_x[i] * xp(i, 1);
+        x(i, 2) = r_x[i] * xp(i, 2);
+        y(i, 0) = r_y[i] * yp(i, 0);
+        y(i, 1) = r_y[i] * yp(i, 1);
+        y(i, 2) = r_y[i] * yp(i, 2);
+    }
+    //q, t, y = iterate_BT(x, y, weights)
+    iterate_BT_c(x, y, weights, q, t);
+    //qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, yf = fast_iterate_BT_newton(
+    //        x, y, xp, yp, weights, q, t, r_y)
+    double *dLdg = malloc(const_length * const_length * 6 * sizeof(double));
+    double *dLdrx = calloc(const_length * 6, sizeof(double));
+    double *dLdry = calloc(const_length * 6, sizeof(double));
+    double bt[6] = {0};
+    double H_inv[6][6] = {{0}};
+    double j[6][6] = {{0}};
+    iterate_BT_newton_c(x, y, xp, yp, weights, q, t, r_y, j, dLdg, dLdrx, dLdry, H_inv);
+    //    dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + \
+//        np.transpose(dLdry) @ np.transpose(Hnd_R_inv)
+    //    dLdrH_inv_y = np.transpose(dLdrx) @ Hnd_R_inv + \
+//        np.transpose(dLdry) @ Hdy_R_inv
+    double *dLdrH_inv_x = calloc(const_length * 6, sizeof(double));
+    double *dLdrH_inv_y = calloc(const_length * 6, sizeof(double));
+#define dLdrH_inv_x(i, j) (dLdrH_inv_x[(i)*const_length + (j)])
+#define dLdrH_inv_y(i, j) (dLdrH_inv_y[(i)*const_length + (j)])
+#define dLdrx(i, j) (dLdrx[(i)*6 + (j)])
+#define dLdry(i, j) (dLdry[(i)*6 + (j)])
+#define Hdx_R_inv(i, j) (Hdx_R_inv[(j)*const_length + (i)])
+#define Hdy_R_inv(i, j) (Hdy_R_inv[(j)*const_length + (i)])
+#define Hnd_R_inv(i, j) (Hnd_R_inv[(j)*const_length + (i)])
+    for (size_t i = 0; i < 6; i++)
+    {
+        for (size_t j = 0; j < const_length; j++)
+        {
+            for (size_t k = 0; k < const_length; k++)
+            {
+                dLdrH_inv_x(i, j) += dLdrx(k, i) * Hdx_R_inv(k, j) + dLdry(k, i) * Hnd_R_inv(j, k);
+                dLdrH_inv_y(i, j) += dLdrx(k, i) * Hnd_R_inv(k, j) + dLdry(k, i) * Hdy_R_inv(k, j);
+            }
+        }
+    }
+
+    //    dLrg = - np.einsum('ij,k->jki',  dLdrH_inv_x * (hdx_R * r_x), np.ones(len(yp))) \
+//        - np.einsum('ij,jk->jki', dLdrH_inv_x, (hnd_R * r_y)) \
+//        - np.einsum('ij,jk->kji', dLdrH_inv_y, (np.transpose(hnd_R) * r_x)) \
+//        - np.einsum('ij,k->kji', dLdrH_inv_y * (hdy_R * r_y), np.ones(len(xp))) \
+//        - np.einsum('ik,j->kji', dLdrH_inv_x * l_x, np.ones(len(yp))) \
+//        - np.einsum('ij,k->kji', dLdrH_inv_y * l_y, np.ones(len(xp)))
+    double *dLrg = calloc(const_length * const_length * 6, sizeof(double));
+#define dLrg(i, j, k) (dLrg[(i)*const_length * 6 + (j)*6 + (k)])
+#define hnd_R(i, j) (hnd_R[(i)*const_length + (j)])
+    for (size_t i = 0; i < 6; i++)
+    {
+        for (size_t j = 0; j < const_length; j++)
+        {
+            for (size_t k = 0; k < const_length; k++)
+            {
+                dLrg(j, k, i) -= dLdrH_inv_x(i, j) * (hdx_R[j] * r_x[j] + hnd_R(j, k) * r_y[k]);
+                dLrg(k, j, i) -= dLdrH_inv_y(i, j) * (hnd_R(k, j) * r_x[k] + hdy_R[j] * r_y[j] + l_y[j]) + dLdrH_inv_x(i, k) * l_x[k];
+                //check orientation whether 2 times jki and 4 times kji is correct
+            }
+        }
+    }
+    free(dLrg);
+    free(dLdrH_inv_x);
+    free(dLdrH_inv_y);
+    free(dLdg);
+    free(dLdrx);
+    free(dLdry);
+    free(x);
+    free(y);
+    free(hdx_R);
+    free(hdy_R);
+    free(hnd_raw_R);
+    free(hnd_R);
+    free(Hdx_R_inv);
+    free(Hdy_R_inv);
+    free(Hnd_R_inv);
+    free(r_x);
+    free(r_y);
+    free(l_x);
+    free(l_y);
+#undef x
+#undef y
+#undef xp
+#undef yp
+#undef dLdrH_inv_y
+#undef dLdrH_inv_x
+#undef dLdrx
+#undef dLdry
+#undef Hdx_R_inv
+#undef Hdy_R_inv
+#undef Hnd_R_inv
+#undef dLrg
+#undef hnd_R
 }
 
 int main(void)
 {
     int *xp = (int *)calloc(const_length * 3, sizeof(int));
     int *yp = (int *)malloc(const_length * 3 * sizeof(int));
-    double q[4] = {sqrt(1 - 0.01 - 0.04 - 0.09), 0.1, 0.2, 0.3};
-    double t[3] = {1, 2, 3};
+    double q_true[4] = {sqrt(1 - 0.01 - 0.04 - 0.09), 0.1, 0.2, 0.3};
+    double t_true[3] = {1, 2, 3};
     double *weights = (double *)malloc(const_length * const_length * sizeof(double));
     double *hnd_R = (double *)malloc(const_length * const_length * sizeof(double));
     double *Hdx_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
@@ -603,16 +922,56 @@ int main(void)
 
     get_hessian_parts_R_c(xp, yp, hdx_R, hdy_R, hnd_raw_R);
 
-    fast_findanalytic_R_c(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv);
+    fast_findanalytic_R_c(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv);
     //int hdx_R[length], int hdy_R[length], int hnd_raw_R[], double r_x[length], double r_y[length], double hnd_R[length][length],
     //                       double l_x[length], double l_y[length], double Hdx_R_inv[length][length], double Hdy_R_inv[length][length],
     //                       double Hnd_R_inv[length][length])
-    for (int i = 0; i < 10; i++)
+    double q[4];
+    double t[3];
+    double *x = malloc(const_length * 3 * sizeof(double));
+    double *y = malloc(const_length * 3 * sizeof(double));
+#define x(z, y) x[3 * (z) + (y)]
+#define y(i, j) y[3 * (i) + (j)]
+    for (size_t i = 0; i < const_length; i++)
     {
-        printf("r_x[%i]=%f\n", i, r_x[i]);
+        x(i, 0) = r_x[i] * xp(i, 0);
+        x(i, 1) = r_x[i] * xp(i, 1);
+        x(i, 2) = r_x[i] * xp(i, 2);
+        y(i, 0) = r_y[i] * yp(i, 0);
+        y(i, 1) = r_y[i] * yp(i, 1);
+        y(i, 2) = r_y[i] * yp(i, 2);
     }
+
+    iterate_BT_c(x, y, weights, q, t);
+    double *l = malloc(const_length * const_length * 6 * sizeof(double));
+    double *dLdrx = calloc(const_length * 6, sizeof(double));
+    double *dLdry = calloc(const_length * 6, sizeof(double));
+    double bt[6] = {0};
+    double Hinv[6][6];
+    fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, true, bt, l, dLdrx, dLdry, Hinv);
+    free(xp);
+    free(yp);
+    free(x);
+    free(y);
+    free(weights);
+    free(hnd_R);
+    free(Hdx_R_inv);
+    free(Hdy_R_inv);
+    free(Hnd_R_inv);
+    free(l);
+    free(dLdrx);
+    free(dLdry);
+    free(r_x);
+    free(r_y);
+    free(l_x);
+    free(l_y);
+    free(hdx_R);
+    free(hdy_R);
+    free(hnd_raw_R);
 #undef xp
 #undef yp
+#undef x
+#undef y
 #undef weights
 #undef hnd_R
 #undef Hdx_R_inv

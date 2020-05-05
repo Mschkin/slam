@@ -1,5 +1,5 @@
 from cffi import FFI
-from geometry import get_hessian_parts_R, fast_findanalytic_R, findanalytic_R, fast_findanalytic_BT, iterate_BT, fast_findanalytic_BT_newton
+from geometry import get_hessian_parts_R, fast_findanalytic_R, findanalytic_R, fast_findanalytic_BT, iterate_BT, fast_findanalytic_BT_newton, parallel_transport_jacobian, fast_iterate_BT_newton
 import numpy as np
 import copy
 import ctypes
@@ -7,26 +7,33 @@ import quaternion
 
 ffi = FFI()
 
-ffi.cdef("""void get_hessian_parts_R_c(int *xp, int *yp, int *hdx_R, int *hdy_R, int *hnd_raw_R);
-            void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *xp, int *yp,
-                           int *hdx_R, int *hdy_R, int *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
-                           double *l_x, double *l_y, double *Hdx_R_inv, double *Hdy_R_inv,
-                           double *Hnd_R_inv);
-            void fast_findanalytic_BT_c(double *x, double *y, double *weights, double bt[6]);
-            void iterate_BT_c(double *x, double *y, double *weights, double q[4], double t[3]);
-            void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
-                                   double *r_y,  _Bool final_run, double bt[6], double *l, double *dLdrx, double *dLdry, double Hinv[6][6]);
+ffi.cdef("""
+void get_hessian_parts_R_c(int *xp, int *yp, int *hdx_R, int *hdy_R, int *hnd_raw_R);
+void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *xp, int *yp,
+                int *hdx_R, int *hdy_R, int *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
+                double *l_x, double *l_y, double *Hdx_R_inv, double *Hdy_R_inv,
+                double *Hnd_R_inv);
+void fast_findanalytic_BT_c(double *x, double *y, double *weights, double bt[6]);
+void iterate_BT_c(double *x, double *y, double *weights, double q[4], double t[3]);
+void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
+                                double *r_y,  _Bool final_run, double bt[6], double *dLdg, double *dLdrx, double *dLdry, double Hinv[6][6]);
+void parallel_transport_jacobian_c(double q[4], double t[3], double j[6][6]);
+void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights, double q[4], double t[3], double *r_y, 
+                        double j[6][6], double *dLdg, double *dLdrx, double *dLdry, double H_inv[6][6]);
                                    """)
 f = open('geometry.h', 'w')
-f.write("""void get_hessian_parts_R_c(int *xp, int *yp, int *hdx_R, int *hdy_R, int *hnd_raw_R);
-        void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *xp, int *yp,
-                           int *hdx_R, int *hdy_R, int *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
-                           double *l_x, double *l_y, double *Hdx_R_inv, double *Hdy_R_inv,
-                           double *Hnd_R_inv);
-        void fast_findanalytic_BT_c(double *x, double *y, double *weights, double bt[6]);
-        void iterate_BT_c(double *x, double *y, double *weights, double q[4], double t[3]);
-        void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
-                                   double *r_y,  _Bool final_run, double bt[6], double *l, double *dLdrx, double *dLdry, double Hinv[6][6]);
+f.write("""
+void get_hessian_parts_R_c(int *xp, int *yp, int *hdx_R, int *hdy_R, int *hnd_raw_R);
+void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *xp, int *yp,
+                            int *hdx_R, int *hdy_R, int *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
+                            double *l_x, double *l_y, double *Hdx_R_inv, double *Hdy_R_inv,double *Hnd_R_inv);
+void fast_findanalytic_BT_c(double *x, double *y, double *weights, double bt[6]);
+void iterate_BT_c(double *x, double *y, double *weights, double q[4], double t[3]);
+void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
+                                double *r_y,  _Bool final_run, double bt[6], double *dLdg, double *dLdrx, double *dLdry, double Hinv[6][6]);
+void parallel_transport_jacobian_c(double q[4], double t[3], double j[6][6]);
+void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights, double q[4], double t[3], double *r_y, 
+                        double j[6][6], double *dLdg, double *dLdrx, double *dLdry, double H_inv[6][6]);
                                    """)
 f.close()
 
@@ -43,8 +50,9 @@ def test_gethc(xp, yp):
     from _geometry.lib import fast_findanalytic_BT_c
     from _geometry.lib import iterate_BT_c
     from _geometry.lib import fast_findanalytic_BT_newton_c
+    from _geometry.lib import parallel_transport_jacobian_c
+    from _geometry.lib import iterate_BT_newton_c
 
-    print("1")
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("int*", xp_c.__array_interface__['data'][0])
@@ -86,7 +94,6 @@ def test_gethc(xp, yp):
     Hnd_R_invp = ffi.cast('double*', Hnd_R_invc.__array_interface__['data'][0])
     fast_findanalytic_R_c(q_p, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p,
                           r_xp, r_yp, hnd_p, l_xp, l_yp, Hdx_R_invp, Hdy_R_invp, Hnd_R_invp)
-    print("2")
     q = np.quaternion(*q_c)
     t_true = np.quaternion(*t_true_c)
     weights = copy.deepcopy(weights_c)
@@ -98,16 +105,15 @@ def test_gethc(xp, yp):
     y_p = ffi.cast('double*', y_c.__array_interface__['data'][0])
     bt_c = np.zeros(6)
     bt_p = ffi.cast('double*', bt_c.__array_interface__['data'][0])
-    l_c = np.zeros((len(xp), len(xp), 6))
-    l_p = ffi.cast('double*', l_c.__array_interface__['data'][0])
+    dLdg_c = np.zeros((len(xp), len(xp), 6))
+    dLdg_p = ffi.cast('double*', dLdg_c.__array_interface__['data'][0])
     dLdrx_c = np.zeros((len(xp), 6))
-    dLdrx_p = l_p = ffi.cast('double*', dLdrx_c.__array_interface__['data'][0])
+    dLdrx_p = ffi.cast('double*', dLdrx_c.__array_interface__['data'][0])
     dLdry_c = np.zeros((len(xp), 6))
-    dLdry_p = l_p = ffi.cast('double*', dLdry_c.__array_interface__['data'][0])
+    dLdry_p = ffi.cast('double*', dLdry_c.__array_interface__['data'][0])
     Hinv_c = np.zeros((6, 6))
     Hinv_p = ffi.new('double[6][6]', Hinv_c.tolist())
     # fast_findanalytic_BT_c(x_p, y_p, weights_p, bt_p)
-    print("3")
     x = np.transpose(r_x * np.transpose(xp))
     y = np.transpose(r_y * np.transpose(yp))
 
@@ -117,25 +123,29 @@ def test_gethc(xp, yp):
     # t_c is not changed by the c function!!!
     t_c = np.zeros(3)
     t_p = ffi.new('double[3]', t_c.tolist())
-    #iterate_BT_c(x_p, y_p, weights_p,  q_p,  t_p)
+    iterate_BT_c(x_p, y_p, weights_p,  q_p,  t_p)
 
-    #q, t, y = iterate_BT(x, y, weights)
-    print("4")
-    fast_findanalytic_BT_newton_c(x_p, y_p, xp_p, yp_p, q_p, weights_p,
-                                  r_yp,   True, bt_p, l_p, dLdrx_p, dLdry_p,  Hinv_p)
-    print("5 ")
-    print(bt_c)
-    print(np.max(l_c))
-    print(6)
+    q, t, y = iterate_BT(x, y, weights)
+    # fast_findanalytic_BT_newton_c(x_p, y_p, xp_p, yp_p, q_p, weights_p,
+    #                              r_yp,   True, bt_p, dLdg_p, dLdrx_p, dLdry_p,  Hinv_p)
+    # print(bt_c)
+    # print(np.max(l_c))
+    # print("shape of y before geometry ", np.shape(y))
+    #y = np.array([np.quaternion(*yi) for yi in y])
 
-    HinvL, l, dLdrx, dLdry,  Hinv = fast_findanalytic_BT_newton(
-        x, y, xp, yp, q, weights, r_y, final_run=True)
-    print("7")
-    print("HinvL diff\n", HinvL-bt_c)
-    print("l diff\n", np.max(np.abs(l-l_c)))
+    # HinvL, l, dLdrx, dLdry,  Hinv = fast_findanalytic_BT_newton(
+    #    x, y, xp, yp, q, weights, r_y, final_run=True)
 
+    j_c = np.zeros((6, 6))
+    j_p = ffi.new('double[6][6]', j_c.tolist())
+    iterate_BT_newton_c(x_p, y_p, xp_p, yp_p, weights_p,
+                        q_p, t_p, r_yp, j_p, dLdg_p, dLdrx_p, dLdry_p, Hinv_p)
+    q, t, j, dLdg, dLdrx, dLdry, H_inv, y = fast_iterate_BT_newton(
+        x, y, xp, yp, weights, q, t, r_y)
+
+    print(np.max(np.abs(y[:, 1:]-y_c)))
     # print(quaternion.as_float_array(q) - np.array(list(q_p))
-    #print(quaternion.as_float_array(t)[1:], "\n", list(t_p))
+    # print(quaternion.as_float_array(t)[1:], "\n", list(t_p))
 
 
 b = 9

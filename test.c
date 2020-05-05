@@ -1,20 +1,13 @@
-#include <stdio.h>
 #include <stdlib.h>
 
-void add1(double v[3])
+void f(void)
 {
-    v[0] += 1;
-    v[1] += 1;
-    v[2] += 1;
-}
+    int *x = malloc(10 * sizeof(int));
+    x[10] = 0; // problem 1: heap block overrun
+} // problem 2: memory leak -- x not freed
 
-int main()
+int main(void)
 {
-#define v(i, j) (v[(i)*3 + (j)])
-    double *v = calloc(15, sizeof(double));
-    add1(&(v(3, 0)));
-    for (size_t k = 0; k < 5; k++)
-    {
-        printf("%f, %f, %f, \n", v(k, 0), v(k, 1), v(k, 2));
-    }
+    f();
+    return 0;
 }
