@@ -7,8 +7,8 @@
 #define sqrtlength 9
 #define const_length sqrtlength *sqrtlength
 
-void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *xp, int *yp,
-                           int *hdx_R, int *hdy_R, int *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
+void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, double *xp, double *yp,
+                           double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y, double *hnd_R,
                            double *l_x, double *l_y, double *Hdx_R_inv, double *Hdy_R_inv,
                            double *Hnd_R_inv)
 {
@@ -57,7 +57,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
             for (int k = 0; k < 3; k++)
             {
                 for (int l = 0; l < 3; l++)
-                {
+                { //    hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
                     hnd_R(i, j) += 2 * hnd_raw_R(i, j, k, l) * angle_mat[k][l];
                 }
             }
@@ -123,7 +123,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
     for (size_t i = 0; i < const_length; i++)
     {
         l_x[i] = 2 * (xp(i, 0) * t_true[0] + xp(i, 1) * t_true[1] + xp(i, 2) * t_true[2]);
-        l_y[i] = -2 * (xp(i, 0) * l_y_vec[0] + xp(i, 1) * l_y_vec[1] + xp(i, 2) * l_y_vec[2]);
+        l_y[i] = -2 * (yp(i, 0) * l_y_vec[0] + yp(i, 1) * l_y_vec[1] + yp(i, 2) * l_y_vec[2]);
     }
     //L_x = np.einsum('ij,i->i', weights, l_x)
     //L_y = np.einsum('ji,i->i', weights, l_y)
@@ -151,6 +151,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
             r_y[i] -= L_x[j] * Hnd_R_inv(j, i) + Hdy_R_inv(i, j) * L_y[j];
         }
     }
+
     free(Hdx_R);
     free(Hdy_R);
     free(Hnd_R);
@@ -169,7 +170,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights, int *
 #undef Hnd_R_inv
 }
 
-void get_hessian_parts_R_c(int *xp, int *yp, int *hdx_R, int *hdy_R, int *hnd_raw_R)
+void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R)
 {
 #define hnd_raw_R(i, k, j, l) (hnd_raw_R[(i)*const_length * 9 + (k)*9 + (j)*3 + (l)])
 #define xp(i, j) (xp[3 * (i) + (j)])
@@ -318,7 +319,6 @@ def iterate_BT(x, y, weights):
     while True:
         bt = fast_findanalytic_BT(x, y, weights)
         # bt1 = findanalytic_BT(x, y, weights)
-        # print(bt-bt1)
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
@@ -410,7 +410,7 @@ def fast_findanalytic_BT_newton(x, y, xp, yp, q, weights, r_y, t, final_run=Fals
     return - np.linalg.inv(H) @ L
 */
 
-void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, double q[4], double *weights,
+void fast_findanalytic_BT_newton_c(double *x, double *y, double *xp, double *yp, double q[4], double *weights,
                                    double *r_y, _Bool final_run, double bt[6], double *dLdg, double *dLdrx, double *dLdry, double Hinv[6][6])
 {
 //has to be zero!  dLdrx, dLdry,
@@ -419,7 +419,7 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
 #define y(i, j) y[3 * (i) + (j)]
 #define yp(i, j) yp[3 * (i) + (j)]
 #define weights(i, j) weights[(i)*const_length + (j)]
-#define dLdg(i, j, k) dLdg[(i)*const_length * 6 + (j)*6 + k]
+#define dLdg(i, j, k) dLdg[(i)*const_length * 6 + (j)*6 + (k)]
 #define dLdrx(i, j) dLdrx[(i)*6 + (j)]
 #define dLdry(i, j) dLdry[(i)*6 + (j)]
 
@@ -459,7 +459,7 @@ void fast_findanalytic_BT_newton_c(double *x, double *y, int *xp, int *yp, doubl
             //    l = np.zeros((len(xp), len(xp), 6))
             //    l[:, :, :3] = 4 * np.einsum('ik,jl,mkl->ijm', x, y, np.array([[[LeviCivita(i, j, k)
             //                   for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double))
-            //    l[:, :, 3:] = 2 * (np.reshape(np.hstack(len(x) * [x]), (len(x), len(x), 3)) -
+            //    l[:, :, 3:] = 2 * (np.reshape(np.hstack(len(x) * [x]), (len(x), len(x), 3)) -np.reshape(np.vstack(len(y) * [y]), (len(y), len(y), 3)))
             //    L = np.einsum('ij,ijk->k', weights, l)
             dLdg(i, j, 0) = 4 * (x(i, 1) * y(j, 2) - x(i, 2) * y(j, 1));
             L[0] += weights(i, j) * dLdg(i, j, 0);
@@ -650,7 +650,7 @@ def fast_iterate_BT_newton(x, y, xp, yp, weights, q, t, r_y):
     y = quaternion.as_float_array(y)
     return q, t, j, dLdg, dLdrx, dLdry, H_inv, x, y
 */
-void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights, double q[4], double t[3], double *r_y, double j[6][6], double *dLdg, double *dLdrx, double *dLdry, double H_inv[6][6])
+void iterate_BT_newton_c(double *x, double *y, double *xp, double *yp, double *weights, double q[4], double t[3], double *r_y, double Jac[6][6], double *dLdg, double *dLdrx, double *dLdry, double H_inv[6][6])
 {
     //j==0 initialisiert!
 #define y(i, j) y[3 * (i) + (j)]
@@ -658,7 +658,7 @@ void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights
     double expb[4];
     double b_abs;
 
-    for (size_t u = 0; u < 3; u++)
+    for (size_t u = 0; u < 10; u++)
     {
         //bt = fast_findanalytic_BT(x, y, weights)
         fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, false, bt, dLdg, dLdrx, dLdry, H_inv);
@@ -694,7 +694,7 @@ void iterate_BT_newton_c(double *x, double *y, int *xp, int *yp, double *weights
     //x, y, xp, yp, q, weights, r_y, t, final_run=True)
     fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, true, bt, dLdg, dLdrx, dLdry, H_inv);
     //    j = parallel_transport_jacobian(q, t)
-    parallel_transport_jacobian_c(q, t, j);
+    parallel_transport_jacobian_c(q, t, Jac);
 #undef y
 }
 
@@ -725,7 +725,7 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
                         1:], quaternion.as_float_array(tf)[1:]))
     return bt, dbt
 */
-void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, double bt[6], double *dbt)
+void find_BT_from_BT_c(double bt_true[6], double *xp, double *yp, double *weights, double bt[6], double *dbt)
 {
     //q = np.exp(np.quaternion(*bt_true[:3]))
     //t = np.quaternion(*bt_true[3:])
@@ -733,9 +733,9 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
     double q_true[4] = {cos(b_abs), bt_true[0] * sin(b_abs) / b_abs, bt_true[1] * sin(b_abs) / b_abs, bt_true[2] * sin(b_abs) / b_abs};
     double t_true[3] = {bt_true[3], bt_true[4], bt_true[5]};
     //hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    int *hdx_R = malloc(const_length * sizeof(int));
-    int *hdy_R = malloc(const_length * sizeof(int));
-    int *hnd_raw_R = malloc(const_length * const_length * 9 * sizeof(int));
+    double *hdx_R = malloc(const_length * sizeof(double));
+    double *hdy_R = malloc(const_length * sizeof(double));
+    double *hnd_raw_R = malloc(const_length * const_length * 9 * sizeof(double));
     if (hnd_raw_R == NULL)
     {
         printf("nicht genug memory!!\n");
@@ -780,10 +780,9 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
     double *dLdg = malloc(const_length * const_length * 6 * sizeof(double));
     double *dLdrx = calloc(const_length * 6, sizeof(double));
     double *dLdry = calloc(const_length * 6, sizeof(double));
-    double bt[6] = {0};
     double H_inv[6][6] = {{0}};
-    double j[6][6] = {{0}};
-    iterate_BT_newton_c(x, y, xp, yp, weights, q, t, r_y, j, dLdg, dLdrx, dLdry, H_inv);
+    double Jac[6][6] = {{0}};
+    iterate_BT_newton_c(x, y, xp, yp, weights, q, t, r_y, Jac, dLdg, dLdrx, dLdry, H_inv);
     //    dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + \
 //        np.transpose(dLdry) @ np.transpose(Hnd_R_inv)
     //    dLdrH_inv_y = np.transpose(dLdrx) @ Hnd_R_inv + \
@@ -794,9 +793,9 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
 #define dLdrH_inv_y(i, j) (dLdrH_inv_y[(i)*const_length + (j)])
 #define dLdrx(i, j) (dLdrx[(i)*6 + (j)])
 #define dLdry(i, j) (dLdry[(i)*6 + (j)])
-#define Hdx_R_inv(i, j) (Hdx_R_inv[(j)*const_length + (i)])
-#define Hdy_R_inv(i, j) (Hdy_R_inv[(j)*const_length + (i)])
-#define Hnd_R_inv(i, j) (Hnd_R_inv[(j)*const_length + (i)])
+#define Hdx_R_inv(i, j) (Hdx_R_inv[(i)*const_length + (j)])
+#define Hdy_R_inv(i, j) (Hdy_R_inv[(i)*const_length + (j)])
+#define Hnd_R_inv(i, j) (Hnd_R_inv[(i)*const_length + (j)])
     for (size_t i = 0; i < 6; i++)
     {
         for (size_t j = 0; j < const_length; j++)
@@ -818,6 +817,7 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
     double *dLrg = calloc(const_length * const_length * 6, sizeof(double));
 #define dLrg(i, j, k) (dLrg[(i)*const_length * 6 + (j)*6 + (k)])
 #define hnd_R(i, j) (hnd_R[(i)*const_length + (j)])
+
     for (size_t i = 0; i < 6; i++)
     {
         for (size_t j = 0; j < const_length; j++)
@@ -830,6 +830,54 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
             }
         }
     }
+
+    //    dbt = np.einsum('ijk,km->ijm', dLdg + dLrg, -H_bt_inv @ j)
+    double HinvJ[6][6];
+    for (size_t i = 0; i < 6; i++)
+    {
+        for (size_t j = 0; j < 6; j++)
+        {
+            HinvJ[i][j] = 0;
+            for (size_t k = 0; k < 6; k++)
+            {
+                HinvJ[i][j] -= H_inv[i][k] * Jac[k][j];
+            }
+        }
+    }
+
+#define dbt(i, j, m) (dbt[(i)*const_length * 6 + (j)*6 + (m)])
+#define dLdg(i, j, m) (dLdg[(i)*const_length * 6 + (j)*6 + (m)])
+
+    for (size_t i = 0; i < const_length; i++)
+    {
+        for (size_t j = 0; j < const_length; j++)
+        {
+            for (size_t m = 0; m < 6; m++)
+            {
+                for (size_t k = 0; k < 6; k++)
+                {
+                    dbt(i, j, m) += (dLdg(i, j, k) + dLrg(i, j, k)) * HinvJ[k][m];
+                }
+            }
+        }
+    }
+    //    bt = np.concatenate((quaternion.as_float_array(np.log(qf))[1:], quaternion.as_float_array(tf)[1:]))
+    double qvb = sqrt(q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+    if (qvb != 0)
+    {
+        bt[0] = q[1] / qvb * acos(q[0]);
+        bt[1] = q[2] / qvb * acos(q[0]);
+        bt[2] = q[3] / qvb * acos(q[0]);
+    }
+    else
+    {
+        bt[0] = 0;
+        bt[1] = 0;
+        bt[2] = 0;
+    }
+    bt[3] = t[0];
+    bt[4] = t[1];
+    bt[5] = t[2];
     free(dLrg);
     free(dLdrH_inv_x);
     free(dLdrH_inv_y);
@@ -862,37 +910,42 @@ void find_BT_from_BT_c(double bt_true[6], int *xp, int *yp, double *weights, dou
 #undef Hnd_R_inv
 #undef dLrg
 #undef hnd_R
+#undef dbt
+#undef dLdg
 }
 
 int main(void)
 {
-    int *xp = (int *)calloc(const_length * 3, sizeof(int));
-    int *yp = (int *)malloc(const_length * 3 * sizeof(int));
+    double *xp = (double *)calloc(const_length * 3, sizeof(double));
+    double *yp = (double *)malloc(const_length * 3 * sizeof(double));
     double q_true[4] = {sqrt(1 - 0.01 - 0.04 - 0.09), 0.1, 0.2, 0.3};
     double t_true[3] = {1, 2, 3};
-    double *weights = (double *)malloc(const_length * const_length * sizeof(double));
-    double *hnd_R = (double *)malloc(const_length * const_length * sizeof(double));
-    double *Hdx_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
-    double *Hdy_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
-    double *Hnd_R_inv = (double *)malloc(const_length * const_length * sizeof(double));
-    double *r_x = (double *)malloc(const_length * sizeof(double));
-    double *r_y = (double *)malloc(const_length * sizeof(double));
-    double *l_x = (double *)malloc(const_length * sizeof(double));
-    double *l_y = (double *)malloc(const_length * sizeof(double));
+    double *weights = (double *)calloc(const_length * const_length, sizeof(double));
+    double bt_true[6];
+    double qvb = sqrt(q_true[1] * q_true[1] + q_true[2] * q_true[2] + q_true[3] * q_true[3]);
+    if (qvb != 0)
+    {
+        bt_true[0] = q_true[1] / qvb * acos(q_true[0]);
+        bt_true[1] = q_true[2] / qvb * acos(q_true[0]);
+        bt_true[2] = q_true[3] / qvb * acos(q_true[0]);
+    }
+    else
+    {
+        bt_true[0] = 0;
+        bt_true[1] = 0;
+        bt_true[2] = 0;
+    }
+    bt_true[3] = t_true[0];
+    bt_true[4] = t_true[1];
+    bt_true[5] = t_true[2];
+    double bt[6];
+    double *dbt = calloc(const_length * const_length * 6, sizeof(double));
 #define xp(z, y) xp[3 * (z) + (y)]
 #define yp(i, j) yp[3 * (i) + (j)]
 #define weights(i, j) weights[(i)*const_length + (j)]
-#define hnd_R(i, j) hnd_R[(i)*const_length + (j)]
-#define Hdx_R_inv(i, j) Hdx_R_inv[(i)*const_length + (j)]
-#define Hdy_R_inv(i, j) Hdy_R_inv[(i)*const_length + (j)]
-#define Hnd_R_inv(i, j) Hnd_R_inv[(i)*const_length + (j)]
 
     for (int i = 0; i < const_length; i++)
     {
-        for (int j = 0; j < const_length; j++)
-        {
-            weights(i, j) = 0;
-        }
         weights(i, i) = 1;
     }
     for (int i = 0; i < sqrtlength; i++)
@@ -907,74 +960,12 @@ int main(void)
             yp(i * sqrtlength + j, 2) = 1;
         }
     }
-
-    int *hdx_R = malloc(const_length * sizeof(int));
-    int *hdy_R = malloc(const_length * sizeof(int));
-    int *hnd_raw_R = malloc(const_length * const_length * 9 * sizeof(int));
-    if (hnd_raw_R == NULL)
-    {
-        printf("nicht genug memory!!\n");
-    }
-    else
-    {
-        printf("genug memory\n");
-    }
-
-    get_hessian_parts_R_c(xp, yp, hdx_R, hdy_R, hnd_raw_R);
-
-    fast_findanalytic_R_c(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y, hnd_R, l_x, l_y, Hdx_R_inv, Hdy_R_inv, Hnd_R_inv);
-    //int hdx_R[length], int hdy_R[length], int hnd_raw_R[], double r_x[length], double r_y[length], double hnd_R[length][length],
-    //                       double l_x[length], double l_y[length], double Hdx_R_inv[length][length], double Hdy_R_inv[length][length],
-    //                       double Hnd_R_inv[length][length])
-    double q[4];
-    double t[3];
-    double *x = malloc(const_length * 3 * sizeof(double));
-    double *y = malloc(const_length * 3 * sizeof(double));
-#define x(z, y) x[3 * (z) + (y)]
-#define y(i, j) y[3 * (i) + (j)]
-    for (size_t i = 0; i < const_length; i++)
-    {
-        x(i, 0) = r_x[i] * xp(i, 0);
-        x(i, 1) = r_x[i] * xp(i, 1);
-        x(i, 2) = r_x[i] * xp(i, 2);
-        y(i, 0) = r_y[i] * yp(i, 0);
-        y(i, 1) = r_y[i] * yp(i, 1);
-        y(i, 2) = r_y[i] * yp(i, 2);
-    }
-
-    iterate_BT_c(x, y, weights, q, t);
-    double *l = malloc(const_length * const_length * 6 * sizeof(double));
-    double *dLdrx = calloc(const_length * 6, sizeof(double));
-    double *dLdry = calloc(const_length * 6, sizeof(double));
-    double bt[6] = {0};
-    double Hinv[6][6];
-    fast_findanalytic_BT_newton_c(x, y, xp, yp, q, weights, r_y, true, bt, l, dLdrx, dLdry, Hinv);
+    find_BT_from_BT_c(bt_true, xp, yp, weights, bt, dbt);
     free(xp);
     free(yp);
-    free(x);
-    free(y);
     free(weights);
-    free(hnd_R);
-    free(Hdx_R_inv);
-    free(Hdy_R_inv);
-    free(Hnd_R_inv);
-    free(l);
-    free(dLdrx);
-    free(dLdry);
-    free(r_x);
-    free(r_y);
-    free(l_x);
-    free(l_y);
-    free(hdx_R);
-    free(hdy_R);
-    free(hnd_raw_R);
+    free(dbt);
 #undef xp
 #undef yp
-#undef x
-#undef y
 #undef weights
-#undef hnd_R
-#undef Hdx_R_inv
-#undef Hdy_R_inv
-#undef Hnd_R_inv
 }

@@ -1,0 +1,270 @@
+begin 
+unpack depth: 0
+content type: text/plain; charset=utf-8; format=flowed
+['Content-Type', 'Content-Transfer-Encoding']
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+
+
+
+
+-------- Weitergeleitete Nachricht --------
+Betreff: 	Bestellung 14695, Kundennummer 1018001, Frau Maria Lengwenus
+Datum: 	Wed, 29 Apr 2020 06:18:29 +0200
+Von: 	bestellung@parfuemerie-noeth-shop.de
+Antwort an: 	Maria Lengwenus <torte33@t-online.de>
+An: 	order <bestellung@parfuemerie-noeth-shop.de>
+
+
+
+
+------------------------------------------------------------------------
+
+Folgende Artikel wurden soeben unter Parfümerie-Kosmetik Nöth bestellt:
+
+*Bestellung #14695*
+
+
+      Rechnungsadresse
+
+
+Frau Maria Lengwenus
+Unterschönegg 7
+87727 Babenhausen
+Deutschland
+Telefon 015140796122
+Kundennummer 1018001
+
+	
+
+
+      E-Mail-Adresse
+
+torte33@t-online.de
+
+	
+
+
+      Bezahlinformation
+
+*Zahlungsart SOFORT Überweisung *
+
+
+	
+
+
+      Der Versand erfolgt mit
+
+Standard
+
+Menge 	Artikel 	Einzelpreis 	
+	Gesamtbetrag
+*1 *
+
+
+3380810194791
+3380810194791
+
+	
+
+Clarins
+*Extra-Firming Jour Peaux sèches, 50 ml*
+Art. Nr.: 51689575
+*Geschenkverpackung*: Keine
+
+	
+
+*56,16 €*
+
+	Extra-Firming Jour Peaux sèches, 50 ml 	*56,16 €*
+Summe Artikel (netto) 	47,19 €
+zzgl. 19% MwSt., Betrag: 	8,97 €
+Summe Artikel (brutto) 	56,16 €
+*Gesamtbetrag* 	*56,16 €*
+
+
+
+content type: text/html; charset=utf-8
+['Content-Type', 'Content-Transfer-Encoding']
+unpack depth: 0
+content type: text/plain; charset=utf-8; format=flowed
+['Content-Type', 'Content-Transfer-Encoding']
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+
+
+
+
+-------- Weitergeleitete Nachricht --------
+Betreff: 	Benachrichtigung über Zahlungseingang
+Datum: 	Mon, 20 Apr 2020 06:03:13 -0700
+Von: 	Nicole Bleckmann mit PayPal <service@paypal.de>
+Antwort an: 	Nicole Bleckmann <kesselnic@web.de>
+An: 	Parfümerie Nöth <service@parfuemerie-noeth-shop.de>
+
+
+
+Benachrichtigung über Zahlungseingang
+20. Apr 2020 15:02:43 MESZ Transaktionscode: 6FG19519SY3112923 
+https://www.paypal.com/myaccount/..
+	
+
+
+	paypal 		20. Apr 2020 15:02:43 MESZ
+Transaktionscode: 6FG19519SY3112923 
+<https://www.paypal.com/myaccount/transaction/details/6FG19519SY3112923?utm_source=unp&utm_medium=email&utm_campaign=PPX001069&utm_unptid=46a1461a-8307-11ea-826d-b875c05ad052&ppid=PPX001069&cnac=DE&rsta=de_DE&cust=6UY29002N8504242C&unptid=46a1461a-8307-11ea-826d-b875c05ad052&calc=dca7976ec6f12&unp_tpcid=email-xclick-payment-notification&page=main:email:PPX001069:::&pgrp=main:email&e=cl&mchn=em&s=ci&mail=sys&xt=Ctrl_EmailConfirmation_FooterUpdate> 
+	
+
+	
+
+Guten Tag, Parfümerie Nöth!
+
+Sie haben eine Zahlung über €56,44 EUR von Nicole Bleckmann 
+(kesselnic@web.de) erhalten
+Sie können Ihre Ware jetzt verschicken. Alle Details zu dieser Zahlung 
+finden Sie in Ihrer PayPal-Kontoübersicht.
+Es kann einige Minuten dauern, bis die Transaktion in Ihrem Konto 
+angezeigt wird.
+
+Verkäuferschutz - Berechtigt
+Käufer
+Nicole Bleckmann
+kesselnic@web.de
+	Mitteilung an Händler
+Der Käufer hat keine Mitteilung eingegeben.
+Lieferadresse
+Nicole Bleckmann
+Longericher Hauptstraße 51a
+50739 Köln
+Deutschland
+	Versanddetails
+Sie haben noch keine Versanddetails eingegeben.
+
+
+Beschreibung 	Stückpreis 	Anzahl 	Betrag
+Bestellnummer 14490
+Standard Preis:
+	€56,44 EUR 	1 	€56,44 EUR
+
+Zwischensumme 	€56,44 EUR
+Versandkosten 	€0,00 EUR
+Versicherung 	€0,00 EUR
+Summe 	€56,44 EUR
+Zahlung 	€56,44 EUR
+Zahlungsempfänger service@parfuemerie-noeth-shop.de
+
+Fragen? Besuchen Sie das Hilfe-Center unter www.paypal.com/de/help.
+Bitte antworten Sie nicht auf diese E-Mail. Dieses Postfach wird nicht 
+überwacht, deshalb werden Sie keine Antwort erhalten. Wenn Sie Hilfe 
+benötigen, loggen Sie sich in Ihr PayPal-Konto ein und klicken Sie oben 
+rechts auf einer der PayPal-Seiten auf den Link *Hilfe*.
+Anstelle unserer HTML-E-Mails können wir Ihnen Benachrichtigungen auch 
+als Reintext zusenden. Wenn Sie Ihre Optionen für 
+E-Mail-Benachrichtigungen ändern wollen, loggen Sie sich in Ihr Konto 
+ein und klicken Sie unter "Mein Profil" auf *Einstellungen*.
+	
+
+	
+
+Copyright © 1999–2020 PayPal. Alle Rechte vorbehalten.
+
+PayPal (Europe) S.à r.l. et Cie, S.C.A., Société en Commandite par 
+Actions. Eingetragener Firmensitz: 22-24 Boulevard Royal, L-2449 
+Luxembourg, RCS Luxembourg B 118 349
+
+PayPal PPX001069:1.1:dca7976ec6f12
+
+	
+
+	
+
+
+content type: text/html; charset=utf-8
+['Content-Type', 'Content-Transfer-Encoding']
+unpack depth: 0
+content type: text/plain; charset=utf-8; format=flowed
+['Content-Type', 'Content-Transfer-Encoding']
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+
+
+
+
+-------- Weitergeleitete Nachricht --------
+Betreff: 	Bestellung 14490, Kundennummer 1017792, Nicole Bleckmann
+Datum: 	Mon, 20 Apr 2020 15:02:45 +0200
+Von: 	bestellung@parfuemerie-noeth-shop.de
+Antwort an: 	Nicole Bleckmann <kesselnic@web.de>
+An: 	order <bestellung@parfuemerie-noeth-shop.de>
+
+
+
+
+------------------------------------------------------------------------
+
+Folgende Artikel wurden soeben unter Parfümerie-Kosmetik Nöth bestellt:
+
+*Bestellung #14490*
+
+
+      Rechnungsadresse
+
+
+Nicole Bleckmann
+Longericher Hauptstraße 51a
+50739 Köln
+Deutschland
+Telefon
+Kundennummer 1017792
+
+	
+
+
+      E-Mail-Adresse
+
+kesselnic@web.de
+
+	
+
+
+      Bezahlinformation
+
+*Zahlungsart PayPal *
+
+
+	
+
+
+      Der Versand erfolgt mit
+
+Standard
+
+Menge 	Artikel 	Einzelpreis 	
+	Gesamtbetrag
+*1 *
+
+
+3380810194821
+3380810194821
+
+	
+
+Clarins
+*Extra-Firming Nuit Toutes peaux, 50 ml*
+Art. Nr.: 51689582
+*Geschenkverpackung*: Keine
+
+	
+
+*56,44 €*
+
+	Extra-Firming Nuit Toutes peaux, 50 ml 	*56,44 €*
+Summe Artikel (netto) 	47,43 €
+zzgl. 19% MwSt., Betrag: 	9,01 €
+Summe Artikel (brutto) 	56,44 €
+*Gesamtbetrag* 	*56,44 €*
+
+
+
+content type: text/html; charset=utf-8
+['Content-Type', 'Content-Transfer-Encoding']

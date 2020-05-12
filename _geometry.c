@@ -543,7 +543,7 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 
 static void *_cffi_types[] = {
 /*  0 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, double *)
-/*  1 */ _CFFI_OP(_CFFI_OP_POINTER, 73), // double *
+/*  1 */ _CFFI_OP(_CFFI_OP_POINTER, 74), // double *
 /*  2 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /*  3 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /*  4 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
@@ -555,15 +555,15 @@ static void *_cffi_types[] = {
 /* 10 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 11 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 12 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 13 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, int *, int *, int *, int *, int *, double *, double *, double *, double *, double *, double *, double *, double *)
+/* 13 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, double *, double *, double *)
 /* 14 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 15 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 16 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 17 */ _CFFI_OP(_CFFI_OP_POINTER, 76), // int *
-/* 18 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 19 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 20 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 21 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
+/* 17 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 18 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 19 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 20 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 21 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, double *, double *, double *, double *, _Bool, double *, double *, double *, double *, double(*)[6])
 /* 22 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 23 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 24 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
@@ -571,54 +571,54 @@ static void *_cffi_types[] = {
 /* 26 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 27 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 28 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 29 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 30 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 31 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double(*)[6])
+/* 29 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1), // _Bool
+/* 30 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 31 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 32 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 33 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 34 */ _CFFI_OP(_CFFI_OP_POINTER, 74), // double(*)[6]
+/* 34 */ _CFFI_OP(_CFFI_OP_POINTER, 75), // double(*)[6]
 /* 35 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 36 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, int *, int *, double *, double *, double *, _Bool, double *, double *, double *, double *, double(*)[6])
+/* 36 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *, double *)
 /* 37 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 38 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 39 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 40 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
+/* 39 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 40 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 41 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 42 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 43 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 44 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1), // _Bool
+/* 44 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 45 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 46 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 47 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 48 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 49 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
-/* 50 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 51 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, int *, int *, double *, double *, double *, double *, double(*)[6], double *, double *, double *, double(*)[6])
+/* 49 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 50 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 51 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 52 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 53 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 54 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 55 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
+/* 53 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 54 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double *, double *, double *, double *, double *, double *, double(*)[6], double *, double *, double *, double(*)[6])
+/* 55 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 56 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 57 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 58 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 59 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 60 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
+/* 60 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 61 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
 /* 62 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 63 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
-/* 64 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
-/* 65 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 66 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(int *, int *, int *, int *, int *)
-/* 67 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 68 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 69 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 70 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 71 */ _CFFI_OP(_CFFI_OP_NOOP, 17),
-/* 72 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 73 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14), // double
-/* 74 */ _CFFI_OP(_CFFI_OP_ARRAY, 73), // double[6]
-/* 75 */ (_cffi_opcode_t)(6),
-/* 76 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7), // int
+/* 63 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
+/* 64 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 65 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 66 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 67 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
+/* 68 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 69 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // void()(double *, double *, double(*)[6])
+/* 70 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 71 */ _CFFI_OP(_CFFI_OP_NOOP, 1),
+/* 72 */ _CFFI_OP(_CFFI_OP_NOOP, 34),
+/* 73 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 74 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 14), // double
+/* 75 */ _CFFI_OP(_CFFI_OP_ARRAY, 74), // double[6]
+/* 76 */ (_cffi_opcode_t)(6),
 /* 77 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
 };
 
@@ -695,7 +695,7 @@ _cffi_f_fast_findanalytic_BT_c(PyObject *self, PyObject *args)
 #  define _cffi_f_fast_findanalytic_BT_c _cffi_d_fast_findanalytic_BT_c
 #endif
 
-static void _cffi_d_fast_findanalytic_BT_newton_c(double * x0, double * x1, int * x2, int * x3, double * x4, double * x5, double * x6, _Bool x7, double * x8, double * x9, double * x10, double * x11, double(* x12)[6])
+static void _cffi_d_fast_findanalytic_BT_newton_c(double * x0, double * x1, double * x2, double * x3, double * x4, double * x5, double * x6, _Bool x7, double * x8, double * x9, double * x10, double * x11, double(* x12)[6])
 {
   fast_findanalytic_BT_newton_c(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12);
 }
@@ -705,8 +705,8 @@ _cffi_f_fast_findanalytic_BT_newton_c(PyObject *self, PyObject *args)
 {
   double * x0;
   double * x1;
-  int * x2;
-  int * x3;
+  double * x2;
+  double * x3;
   double * x4;
   double * x5;
   double * x6;
@@ -754,19 +754,19 @@ _cffi_f_fast_findanalytic_BT_newton_c(PyObject *self, PyObject *args)
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg2, (char **)&x2);
+      _cffi_type(1), arg2, (char **)&x2);
   if (datasize != 0) {
-    x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg2, (char **)&x2,
+    x2 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg3, (char **)&x3);
+      _cffi_type(1), arg3, (char **)&x3);
   if (datasize != 0) {
-    x3 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg3, (char **)&x3,
+    x3 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -862,7 +862,7 @@ _cffi_f_fast_findanalytic_BT_newton_c(PyObject *self, PyObject *args)
 #  define _cffi_f_fast_findanalytic_BT_newton_c _cffi_d_fast_findanalytic_BT_newton_c
 #endif
 
-static void _cffi_d_fast_findanalytic_R_c(double * x0, double * x1, double * x2, int * x3, int * x4, int * x5, int * x6, int * x7, double * x8, double * x9, double * x10, double * x11, double * x12, double * x13, double * x14, double * x15)
+static void _cffi_d_fast_findanalytic_R_c(double * x0, double * x1, double * x2, double * x3, double * x4, double * x5, double * x6, double * x7, double * x8, double * x9, double * x10, double * x11, double * x12, double * x13, double * x14, double * x15)
 {
   fast_findanalytic_R_c(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15);
 }
@@ -873,11 +873,11 @@ _cffi_f_fast_findanalytic_R_c(PyObject *self, PyObject *args)
   double * x0;
   double * x1;
   double * x2;
-  int * x3;
-  int * x4;
-  int * x5;
-  int * x6;
-  int * x7;
+  double * x3;
+  double * x4;
+  double * x5;
+  double * x6;
+  double * x7;
   double * x8;
   double * x9;
   double * x10;
@@ -936,46 +936,46 @@ _cffi_f_fast_findanalytic_R_c(PyObject *self, PyObject *args)
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg3, (char **)&x3);
+      _cffi_type(1), arg3, (char **)&x3);
   if (datasize != 0) {
-    x3 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg3, (char **)&x3,
+    x3 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg4, (char **)&x4);
+      _cffi_type(1), arg4, (char **)&x4);
   if (datasize != 0) {
-    x4 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg4, (char **)&x4,
+    x4 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg5, (char **)&x5);
+      _cffi_type(1), arg5, (char **)&x5);
   if (datasize != 0) {
-    x5 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg5, (char **)&x5,
+    x5 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg5, (char **)&x5,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg6, (char **)&x6);
+      _cffi_type(1), arg6, (char **)&x6);
   if (datasize != 0) {
-    x6 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg6, (char **)&x6,
+    x6 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg6, (char **)&x6,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg7, (char **)&x7);
+      _cffi_type(1), arg7, (char **)&x7);
   if (datasize != 0) {
-    x7 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg7, (char **)&x7,
+    x7 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg7, (char **)&x7,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -1067,7 +1067,102 @@ _cffi_f_fast_findanalytic_R_c(PyObject *self, PyObject *args)
 #  define _cffi_f_fast_findanalytic_R_c _cffi_d_fast_findanalytic_R_c
 #endif
 
-static void _cffi_d_get_hessian_parts_R_c(int * x0, int * x1, int * x2, int * x3, int * x4)
+static void _cffi_d_find_BT_from_BT_c(double * x0, double * x1, double * x2, double * x3, double * x4, double * x5)
+{
+  find_BT_from_BT_c(x0, x1, x2, x3, x4, x5);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_find_BT_from_BT_c(PyObject *self, PyObject *args)
+{
+  double * x0;
+  double * x1;
+  double * x2;
+  double * x3;
+  double * x4;
+  double * x5;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  PyObject *arg0;
+  PyObject *arg1;
+  PyObject *arg2;
+  PyObject *arg3;
+  PyObject *arg4;
+  PyObject *arg5;
+
+  if (!PyArg_UnpackTuple(args, "find_BT_from_BT_c", 6, 6, &arg0, &arg1, &arg2, &arg3, &arg4, &arg5))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg1, (char **)&x1);
+  if (datasize != 0) {
+    x1 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg1, (char **)&x1,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg2, (char **)&x2);
+  if (datasize != 0) {
+    x2 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg2, (char **)&x2,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg3, (char **)&x3);
+  if (datasize != 0) {
+    x3 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg3, (char **)&x3,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg4, (char **)&x4);
+  if (datasize != 0) {
+    x4 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg4, (char **)&x4,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(1), arg5, (char **)&x5);
+  if (datasize != 0) {
+    x5 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg5, (char **)&x5,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { find_BT_from_BT_c(x0, x1, x2, x3, x4, x5); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+#else
+#  define _cffi_f_find_BT_from_BT_c _cffi_d_find_BT_from_BT_c
+#endif
+
+static void _cffi_d_get_hessian_parts_R_c(double * x0, double * x1, double * x2, double * x3, double * x4)
 {
   get_hessian_parts_R_c(x0, x1, x2, x3, x4);
 }
@@ -1075,11 +1170,11 @@ static void _cffi_d_get_hessian_parts_R_c(int * x0, int * x1, int * x2, int * x3
 static PyObject *
 _cffi_f_get_hessian_parts_R_c(PyObject *self, PyObject *args)
 {
-  int * x0;
-  int * x1;
-  int * x2;
-  int * x3;
-  int * x4;
+  double * x0;
+  double * x1;
+  double * x2;
+  double * x3;
+  double * x4;
   Py_ssize_t datasize;
   struct _cffi_freeme_s *large_args_free = NULL;
   PyObject *arg0;
@@ -1092,46 +1187,46 @@ _cffi_f_get_hessian_parts_R_c(PyObject *self, PyObject *args)
     return NULL;
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg0, (char **)&x0);
+      _cffi_type(1), arg0, (char **)&x0);
   if (datasize != 0) {
-    x0 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg0, (char **)&x0,
+    x0 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg0, (char **)&x0,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg1, (char **)&x1);
+      _cffi_type(1), arg1, (char **)&x1);
   if (datasize != 0) {
-    x1 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg1, (char **)&x1,
+    x1 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg1, (char **)&x1,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg2, (char **)&x2);
+      _cffi_type(1), arg2, (char **)&x2);
   if (datasize != 0) {
-    x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg2, (char **)&x2,
+    x2 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg3, (char **)&x3);
+      _cffi_type(1), arg3, (char **)&x3);
   if (datasize != 0) {
-    x3 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg3, (char **)&x3,
+    x3 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg4, (char **)&x4);
+      _cffi_type(1), arg4, (char **)&x4);
   if (datasize != 0) {
-    x4 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg4, (char **)&x4,
+    x4 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg4, (char **)&x4,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -1235,7 +1330,7 @@ _cffi_f_iterate_BT_c(PyObject *self, PyObject *args)
 #  define _cffi_f_iterate_BT_c _cffi_d_iterate_BT_c
 #endif
 
-static void _cffi_d_iterate_BT_newton_c(double * x0, double * x1, int * x2, int * x3, double * x4, double * x5, double * x6, double * x7, double(* x8)[6], double * x9, double * x10, double * x11, double(* x12)[6])
+static void _cffi_d_iterate_BT_newton_c(double * x0, double * x1, double * x2, double * x3, double * x4, double * x5, double * x6, double * x7, double(* x8)[6], double * x9, double * x10, double * x11, double(* x12)[6])
 {
   iterate_BT_newton_c(x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12);
 }
@@ -1245,8 +1340,8 @@ _cffi_f_iterate_BT_newton_c(PyObject *self, PyObject *args)
 {
   double * x0;
   double * x1;
-  int * x2;
-  int * x3;
+  double * x2;
+  double * x3;
   double * x4;
   double * x5;
   double * x6;
@@ -1294,19 +1389,19 @@ _cffi_f_iterate_BT_newton_c(PyObject *self, PyObject *args)
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg2, (char **)&x2);
+      _cffi_type(1), arg2, (char **)&x2);
   if (datasize != 0) {
-    x2 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg2, (char **)&x2,
+    x2 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg2, (char **)&x2,
             datasize, &large_args_free) < 0)
       return NULL;
   }
 
   datasize = _cffi_prepare_pointer_call_argument(
-      _cffi_type(17), arg3, (char **)&x3);
+      _cffi_type(1), arg3, (char **)&x3);
   if (datasize != 0) {
-    x3 = ((size_t)datasize) <= 640 ? (int *)alloca((size_t)datasize) : NULL;
-    if (_cffi_convert_array_argument(_cffi_type(17), arg3, (char **)&x3,
+    x3 = ((size_t)datasize) <= 640 ? (double *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(1), arg3, (char **)&x3,
             datasize, &large_args_free) < 0)
       return NULL;
   }
@@ -1471,12 +1566,13 @@ _cffi_f_parallel_transport_jacobian_c(PyObject *self, PyObject *args)
 
 static const struct _cffi_global_s _cffi_globals[] = {
   { "fast_findanalytic_BT_c", (void *)_cffi_f_fast_findanalytic_BT_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 0), (void *)_cffi_d_fast_findanalytic_BT_c },
-  { "fast_findanalytic_BT_newton_c", (void *)_cffi_f_fast_findanalytic_BT_newton_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 36), (void *)_cffi_d_fast_findanalytic_BT_newton_c },
-  { "fast_findanalytic_R_c", (void *)_cffi_f_fast_findanalytic_R_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 13), (void *)_cffi_d_fast_findanalytic_R_c },
-  { "get_hessian_parts_R_c", (void *)_cffi_f_get_hessian_parts_R_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 66), (void *)_cffi_d_get_hessian_parts_R_c },
+  { "fast_findanalytic_BT_newton_c", (void *)_cffi_f_fast_findanalytic_BT_newton_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 21), (void *)_cffi_d_fast_findanalytic_BT_newton_c },
+  { "fast_findanalytic_R_c", (void *)_cffi_f_fast_findanalytic_R_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 36), (void *)_cffi_d_fast_findanalytic_R_c },
+  { "find_BT_from_BT_c", (void *)_cffi_f_find_BT_from_BT_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 13), (void *)_cffi_d_find_BT_from_BT_c },
+  { "get_hessian_parts_R_c", (void *)_cffi_f_get_hessian_parts_R_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 6), (void *)_cffi_d_get_hessian_parts_R_c },
   { "iterate_BT_c", (void *)_cffi_f_iterate_BT_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 6), (void *)_cffi_d_iterate_BT_c },
-  { "iterate_BT_newton_c", (void *)_cffi_f_iterate_BT_newton_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 51), (void *)_cffi_d_iterate_BT_newton_c },
-  { "parallel_transport_jacobian_c", (void *)_cffi_f_parallel_transport_jacobian_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 31), (void *)_cffi_d_parallel_transport_jacobian_c },
+  { "iterate_BT_newton_c", (void *)_cffi_f_iterate_BT_newton_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 54), (void *)_cffi_d_iterate_BT_newton_c },
+  { "parallel_transport_jacobian_c", (void *)_cffi_f_parallel_transport_jacobian_c, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 69), (void *)_cffi_d_parallel_transport_jacobian_c },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
@@ -1486,7 +1582,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   NULL,  /* no struct_unions */
   NULL,  /* no enums */
   NULL,  /* no typenames */
-  7,  /* num_globals */
+  8,  /* num_globals */
   0,  /* num_struct_unions */
   0,  /* num_enums */
   0,  /* num_typenames */

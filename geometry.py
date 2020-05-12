@@ -5,6 +5,7 @@ from copy import deepcopy
 import cProfile
 from sympy import LeviCivita
 import time
+import matplotlib.pyplot as plt
 # todo:
 # fyjkihg67uio87ygh
 # boundaries of correct convergence, 0.2 seems still to work
@@ -176,8 +177,11 @@ def findanalytic_BT_newton(x, y, yp, q, weights, final_run=False):
         return -np.linalg.inv(H) @ L, l,  dLdr, np.linalg.inv(H)
     return - np.linalg.inv(H) @ L
 
+#x, y, xp, yp, weights, q, t, r_y
+# def iterate_BT(x, y, weights):
 
-def iterate_BT(x, y, weights):
+
+def iterate_BT(x, y, xp, yp, weights, q, t, r_y):
     y = np.array([np.quaternion(*yi) for yi in y])
     q = np.quaternion(1)
     t = np.quaternion(0)
@@ -185,7 +189,7 @@ def iterate_BT(x, y, weights):
         bt = fast_findanalytic_BT(x, y, weights)
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
-        t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
+        t = np.quaternion(*bt[3:]) + expb * t * np.conjugate(expb)
         q = expb * q
         if np.linalg.norm(bt) < 10 ** -2:
             y = quaternion.as_float_array(y)
@@ -209,13 +213,9 @@ def iterate_BT_newton(x, y, yp, weights, q, t):
 
 def fast_iterate_BT_newton(x, y, xp, yp, weights, q, t, r_y):
     y = np.array([np.quaternion(*yi) for yi in y])
-    for _ in range(3):
-        # print("shape of x", np.shape(x), "\n shape of y", np.shape(y), "\nshape of xp ", np.shape(xp), "\n shape of yp", np.shape(
-        #    yp), "\nshape of q", np.shape(q), "\nshape of weights ", np.shape(weights), "\nshape of r_y", np.shape(r_y), "\nshape of t", np.shape(t))
-        # x, y, xp, yp, q, weights, r_y, final_run=False)
+    for _ in range(10):
         bt = fast_findanalytic_BT_newton(
             x, y, xp, yp, q, weights, r_y, final_run=False)
-        #print("shape of bt", np.shape(bt))
         expb = np.exp(np.quaternion(*bt[:3]))
         y = expb * y * np.conjugate(expb) - np.quaternion(*bt[3:])
         t = np.quaternion(*bt[3:])+expb*t*np.conjugate(expb)
@@ -262,7 +262,7 @@ def init_R(zahl):
     x = quaternion.as_float_array(x)
     y = quaternion.as_float_array(y)
     xp = np.array([[xi[1]/xi[3], xi[2]/xi[3], 1] for xi in x])
-    yp = np.array([[yi[1]/yi[3], yi[2]/yi[3], 1] for yi in y])
+    yp = np.array([[yi[1] / yi[3], yi[2] / yi[3], 1] for yi in y])
     return x, y, b, q, t, weights, xp, yp, np.reshape(np.transpose([x[:, 3], y[:, 3]]), 2 * len(x))
 
 
@@ -289,7 +289,7 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
     Hnd_R = hnd_R * weights
     Hnd_R_inv = (np.linalg.inv(
-        ((Hnd_R / Hdy_R)@ np.transpose(Hnd_R)) - np.diag(Hdx_R)) @ Hnd_R) / Hdy_R
+        ((Hnd_R / Hdy_R) @ np.transpose(Hnd_R)) - np.diag(Hdx_R)) @ Hnd_R) / Hdy_R
     Hdy_R_inv = np.einsum('i,ij->ij', 1 / Hdy_R,
                           np.eye(len(xp)) - np.transpose(Hnd_R) @ Hnd_R_inv)
     Hdx_R_inv = np.einsum('i,ij->ij', 1 / Hdx_R,
@@ -453,7 +453,8 @@ def find_BT_from_BT(bt_true, xp, yp, weights):
         q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     x = np.transpose(r_x * np.transpose(xp))
     y = np.transpose(r_y * np.transpose(yp))
-    q, t, y = iterate_BT(x, y, weights)
+    #q, t, y = iterate_BT(x, y, weights)
+    q, t, y = iterate_BT(x, y, xp, yp, weights, q, t, r_y)
     qf, tf, j, dLdg, dLdrx, dLdry, H_bt_inv, yf = fast_iterate_BT_newton(
         x, y, xp, yp, weights, q, t, r_y)
     dLdrH_inv_x = np.transpose(dLdrx) @ Hdx_R_inv + \
@@ -499,11 +500,22 @@ def numericdiff(f, inpt, index):
 def tester():
     # tim = timer()
     # tim.tick()
-    x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(15)
+    x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(81)
+    #form = 9
+    # xp = np.einsum('ik,jk->ijk', np.stack((np.arange(form), np.ones(
+    #    (form)), (form//2+1)*np.ones((form))), axis=-1), np.stack((np.ones((form)), np.arange(form), np.ones((form))), axis=-1)) - form//2
+    #xp = np.reshape(xp, (form * form, 3))
+    #xp = np.array(xp, dtype=np.intc)
+    #yp = xp
+    #weights = np.eye(len(xp))+np.random.rand(len(xp), len(xp))
+
     bt_true = np.concatenate((quaternion.as_float_array(
         b)[1:], quaternion.as_float_array(t_true)[1:]))
     q, b = find_BT_from_BT(bt_true, xp, yp, weights)
-    a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
-    print(np.max(b-a[0]))
+    print("true bt\n", bt_true)
+    #a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
+    # print(np.max(b-a[0]))
 
-# tester()
+
+if __name__ == "__main__":
+    tester()
