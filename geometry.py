@@ -287,6 +287,7 @@ def fast_findanalytic_R(q, t, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
     Hdx_R = np.einsum('i,ij->i', hdx_R, weights)
     Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
+    #Hnd_R= np.array([hnd_R[f(ind)] *weights(ind) for ind,_ in np.denumerate(weights)])
     Hnd_R = hnd_R * weights
     Hnd_R_inv = (np.linalg.inv(
         ((Hnd_R / Hdy_R) @ np.transpose(Hnd_R)) - np.diag(Hdx_R)) @ Hnd_R) / Hdy_R
