@@ -1,4 +1,3 @@
-
 from cffi import FFI
 from geometry import get_hessian_parts_R, fast_findanalytic_R, findanalytic_R, fast_findanalytic_BT, iterate_BT, fast_findanalytic_BT_newton, parallel_transport_jacobian, fast_iterate_BT_newton, find_BT_from_BT, init_R
 import numpy as np
