@@ -267,6 +267,7 @@ def init_R(zahl):
 
 
 def get_hessian_parts_R(xp, yp):
+    print(np.shape(xp))
     hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
     hdy_R = 2 * np.einsum('ij,ij->i', yp, yp)
     hnd_raw_R = np.einsum('ij,kl->ikjl', xp, yp)
@@ -517,6 +518,7 @@ def tester():
     #a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
     # print(np.max(b-a[0]))
 
-
+"""
 if __name__ == "__main__":
     tester()
+"""
