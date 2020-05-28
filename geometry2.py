@@ -77,7 +77,6 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
-    print('2:',np.shape(xp))
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
     rx, ry= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     #print(rx,ry)
@@ -85,11 +84,13 @@ def dVdg_function(xp, yp, q_true, t_true, weights):
     #ry=rx
     x = np.transpose(rx * np.transpose(xp))
     y = np.transpose(ry * np.transpose(yp))
-    dVdg=np.zeros_like(weights)
+    dVdg = np.zeros_like(weights)
+    dVdgn =np.zeros_like(weights)
     norm = np.sum(weights * weights)
     V=2*cost_funtion(xp, yp, q_true, t_true, weights)
-    for i,g in np.ndenumerate(weights):
-        dVdg[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))  - g  * V
+    for i, g in np.ndenumerate(weights):
+        dVdgn[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))
+        dVdg[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]])) - g * V
     return dVdg/ norm
 
 

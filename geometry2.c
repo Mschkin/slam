@@ -8,9 +8,26 @@
 #define const_length sqrtlength *sqrtlength
 #define off_diagonal_number const_length-1
 
+/*def ind2(y, x, l, b):
+    m = min(y, b)
+    n = max(0, y - l + b)
+    return (2 * b) * y + x - b * m + m * (m + 1) // 2 - n * (n + 1) // 2*/
+
+int indexs(int y, int x){
+    int m = (y < off_diagonal_number) ? y : off_diagonal_number;
+    int n = (0 < y - const_length + off_diagonal_number) ? y - const_length + off_diagonal_number : 0;
+    return (2 * off_diagonal_number) * y + x - off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
+}
+int indexb(int y, int x)
+{
+    int m = (y < 2 * off_diagonal_number) ? y : 2 * off_diagonal_number;
+    int n = (0 < y - 2 * const_length + 2 * off_diagonal_number) ? y - const_length + 2 * off_diagonal_number : 0;
+    return (2 * 2 * off_diagonal_number) * y + x - 2 * off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
+}
+
 void sparse_invert(double *mat, double *v1, double *v2)
 {
-#define mat(i, j) mat[(i)*const_length + (j)]
+#define mat(i, j) mat[indexb(i,j)]
     /*def invert(mat, v, l, b):
         for j in range(l):
             for i in range(j + 1, min(j + b + 1, l)):
@@ -19,19 +36,19 @@ void sparse_invert(double *mat, double *v1, double *v2)
                     mat[i, k] -= mat[j, k] * c
                 v[i] -= v[j] * c
     */
-    double c;
-    for (int j = 0; j < const_length; j++)
+double c;
+for (int j = 0; j < const_length; j++)
+{
+    for (int i = j + 1; (i < j + 2*off_diagonal_number + 1) && (i < const_length); i++)
     {
-        for (int i = j + 1; (i < j + off_diagonal_number + 1) && (i < const_length); i++)
+        c = mat(i, j) / mat(j, j);
+        for (int k = (i - 2 * off_diagonal_number < 0 ? 0 : i - 2 * off_diagonal_number); (k < i + 2 * off_diagonal_number + 1) && (k < const_length); k++)
         {
-            c = mat(i, j) / mat(j, j);
-            for (int k = (i - off_diagonal_number < 0? 0 : i - off_diagonal_number); (k < i + off_diagonal_number + 1) && (k < const_length); k++)
-            {
-                mat(i, k) -= mat(j, k) * c;
-            }
-            v1[i] -= v1[j] * c;
-            v2[i] -= v2[j] * c;
+            mat(i, k) -= mat(j, k) * c;
         }
+        v1[i] -= v1[j] * c;
+        v2[i] -= v2[j] * c;
+    }
     }
     /*
     for i in range(l)[::-1]:
@@ -42,7 +59,7 @@ void sparse_invert(double *mat, double *v1, double *v2)
     
     for (int i = const_length - 1; i >= 0; i--)
     {
-        for (int j = i + 1; (j < i + off_diagonal_number + 1) && (j < const_length); j++)
+        for (int j = i + 1; (j < i + 2 * off_diagonal_number + 1) && (j < const_length); j++)
         {
             v1[i] -= mat(i, j) * v1[j];
             v2[i] -= mat(i, j) * v2[j];
@@ -194,16 +211,6 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
         Hnd_R_inv_inter(i, i) -= Hdx_R[i];
     }
     sparse_invert(Hnd_R_inv_inter, L_y_inter, L_x);
-    printf("\n");
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j < 5; j++)
-        {
-            //printf("%f ", Hnd_R_inv_inter(i, j));
-        }
-        //printf("%f ", L_x[i]);
-    }
-    printf("\n");
     for (size_t i = 0; i < const_length; i++)
     {
         r_x[i] = -L_y_inter[i] + L_x[i];
@@ -302,16 +309,16 @@ double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_n
         for (size_t i = 0; i < const_length; i++)
         {
             norm += weights_not_normed(i, j) * weights_not_normed(i, j);
-            dVdg(i, j) = weights_not_normed(i, j) * (x(i, 0) - y(j, 0)) * (x(i, 0) - y(j, 0)) + (x(i, 1) - y(j, 1)) * (x(i, 1) - y(j, 1)) + (x(i, 2) - y(j, 2)) * (x(i, 2) - y(j, 2));
+            dVdg(i, j) = weights_not_normed(i, j) * ((x(i, 0) - y(j, 0)) * (x(i, 0) - y(j, 0)) + (x(i, 1) - y(j, 1)) * (x(i, 1) - y(j, 1)) + (x(i, 2) - y(j, 2)) * (x(i, 2) - y(j, 2)));
             V += weights_not_normed(i, j) * dVdg(i, j);
         }
     }
-    V = V  / norm;
+    V = V / norm;
     for (size_t i = 0; i < const_length; i++)
     {
 
         for(size_t j=0;j<const_length;j++){
-            dVdg(i, j) -= weights_not_normed(i, j) * V;
+            dVdg(i, j) = (dVdg(i, j) -weights_not_normed(i, j) * V)/norm;
         }
     }
     V /= 2;
