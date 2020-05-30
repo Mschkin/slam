@@ -1,18 +1,25 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
+from copy import deepcopy
+from scipy.linalg import lu
+
 
 def ind(y, x, l, b):
     diagnumber = abs(x - y)
-    n = (b - diagnumber) * (l - b) + (b - diagnumber-1) * (b - diagnumber) // 2 + min(x, y)
+    n = (b - diagnumber) * (l - b) + (b - diagnumber-1) * \
+        (b - diagnumber) // 2 + min(x, y)
     if x >= y:
         return n
     else:
         return l * (2 * b + 1) - b * (b + 1) - 1 - n
-        
+
+
 def ind2(y, x, l, b):
     m = min(y, b)
     n = max(0, y - l + b)
     return (2 * b) * y + x - b * m + m * (m + 1) // 2 - n * (n + 1) // 2
+
 
 def invert(mat, v, l, b):
     for j in range(l):
@@ -26,8 +33,109 @@ def invert(mat, v, l, b):
             v[i] -= mat[i, j] * v[j]
         v[i] = v[i] / mat[i, i]
     return v
-    
-    
+
+
+def invert3(mat, v, l, b):
+    matc = np.reshape(deepcopy(mat), (400, 400))
+    print(np.linalg.det(matc))
+    for blockx in range(l):
+        for x in range(l):
+            for blocky in range(blockx, l):
+                for y in range((x + 1) * (blockx == blocky), l):
+                    c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
+                    #if blockx == 0 and blocky == 0 and x == 0:
+                        #print(c)
+                    #matc = np.reshape(deepcopy(mat), (400, 400))
+                    #cv2.imshow('asdf', matc)
+                    #cv2.waitKey(1)
+                    for blockx2 in range(l):
+                        for x2 in range(l):
+                            #if blocky == 0 and y == 10 and blockx2 == 1 and x2 == 0:
+                            #    print(c, mat[blockx, x, blockx2, x2])
+                            mat[blocky, y, blockx2, x2] -= c * mat[blockx, x, blockx2, x2]
+    matc = np.reshape(deepcopy(mat), (400, 400))
+    print(np.linalg.det(matc))
+    return mat
+
+
+def invert2(mat, v, l, b):
+    for blockx in range(l):
+        for x in range(l):
+            for blocky in range(blockx, min(l, blockx + b + 1)):
+                for y in range(max(x - b, (x + 1) * (blockx == blocky)), min(l, x + b + 1)):
+                    c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
+                    # for blockx2 in range(max(0, blocky - b), min(blocky + b + 1, l)):
+                    for blockx2 in range(l):
+                        # for x2 in range(max(0, y - b), min(l, y + b + 1)):
+                        for x2 in range(l):
+                            """
+                            if mat[blocky, blockx2, x, x2] != 0 and x2 > x + b:
+                                print(blocky, blockx2, x, x2)
+                                print(mat[blocky, blockx2])
+                                plt.imshow(mat[blocky, blockx2],cmap='gray')
+                                plt.show()
+                                yuj = 4
+                            """
+                            mat[blocky, y, blockx2, x2] -= c * mat[blockx, x, blockx2,  x2]
+                    v[blocky, y] -= v[blockx, x] * c
+    for blocky in range(l)[::-1]:
+        for y in range(l)[::-1]:
+            for blockx in range(blocky, min(l, blocky + 1 + b)):
+                for x in range(max(y - b, (y + 1) * (blockx == blocky)), min(l, y + b + 1)):
+                    v[blocky, y] -= mat[blocky, y, blockx, x] * v[blockx, x]
+            v[blocky, y] /= mat[blocky, y, blocky, y]
+    p = 1
+    for i in range(l):
+        for j in range(l):
+            #print(mat[i, i, j, j])
+            p *= mat[i, i, j, j]
+    print('det in invert2:', p)
+    return v
+
+
+#mat = np.random.rand(20, 20, 20, 20)
+mat = np.zeros((20, 20, 20, 20))
+for i, v in np.ndenumerate(mat):
+    mat[i] = np.random.rand() * (i[2] - 5 <= i[0] <= i[2] + 5) * \
+        (i[3] - 5 <= i[1] <= i[3] + 5)
+#v = np.random.rand(20, 20)
+matc = np.reshape(deepcopy(mat), (400, 400))
+"""
+_, _, u = lu(matc)
+cv2.imshow('asdf', u)
+cv2.waitKey(0)
+"""
+cv2.imshow('asdf', matc)
+cv2.waitKey(10)
+mat = invert3(mat, v, 20, 5)
+mat = np.reshape(mat, (400, 400))
+mat = (abs(mat) > 10**-5)*1.
+plt.imshow(mat, cmap='gray')
+plt.show()
+cv2.imshow('asdf', mat)
+cv2.waitKey(0)
+"""
+mat = np.reshape(mat, (400, 400))
+print('nps det:', np.linalg.det(mat))
+v2 = np.reshape(v, 400)
+v2 = np.linalg.inv(mat) @ v2
+print(v2[:10], np.reshape(v, 400)[:10])
+
+
+
+matc = np.reshape(mat, (400, 400))
+cv2.imshow('asdf', matc)
+cv2.waitKey(100)
+mat = np.einsum('ijkl->ikjl', mat)
+invert2(mat, [], 20, 5)
+mat = np.einsum('ijkl->ikjl', mat)
+mat = np.reshape(mat, (400, 400))
+cv2.imshow('asdf', mat)
+cv2.waitKey(0)
+"""
+
+
+"""  
 ran = list(range(28))
 
 a = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + np.diag(np.random.rand(9), -1)
@@ -51,4 +159,4 @@ for k in range(l):
             res[k, j] += m1[k, i] * m2[i, j]
 #print(np.linalg.norm(res - m1 @ m2))
 print(np.linalg.inv(m1)@v-invert(m1,v,10,1))
-
+"""
