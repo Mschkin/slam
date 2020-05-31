@@ -6,14 +6,15 @@
 
 #define sqrtlength 9
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number const_length-1
+#define off_diagonal_number const_length - 1
 
 /*def ind2(y, x, l, b):
     m = min(y, b)
     n = max(0, y - l + b)
     return (2 * b) * y + x - b * m + m * (m + 1) // 2 - n * (n + 1) // 2*/
 
-int indexs(int y, int x){
+int indexs(int y, int x)
+{
     int m = (y < off_diagonal_number) ? y : off_diagonal_number;
     int n = (0 < y - const_length + off_diagonal_number) ? y - const_length + off_diagonal_number : 0;
     return (2 * off_diagonal_number) * y + x - off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
@@ -27,48 +28,72 @@ int indexb(int y, int x)
 
 void sparse_invert(double *mat, double *v1, double *v2)
 {
-#define mat(i, j) mat[indexb(i,j)]
-    /*def invert(mat, v, l, b):
-        for j in range(l):
-            for i in range(j + 1, min(j + b + 1, l)):
-                c = mat[i, j] / mat[j, j]
-                for k in range(i, min(l, i + b + 1)):
-                    mat[i, k] -= mat[j, k] * c
-                v[i] -= v[j] * c
+#define mat(i, k, j, l) mat[indexb(i, j) * const_length + (k)*sqrtlength + (l)]
+#define v1(i, j) v1[(i)*sqrtlength + (j)]
+#define v2(i, j) v2[(i)*sqrtlength + (j)]
+    /*def invert3(mat, v, l, b):
+    for blockx in range(l):
+        for x in range(l):
+            for blocky in range(blockx, min(l, blockx + b + 1)):
+                for y in range((x + 1) * (blockx == blocky), l):
+                    c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
+                    for blockx2 in range(max(0, blocky - b), min(blocky + b + 1, l)):
+                        for x2 in range(l):
+                            mat[blocky, y, blockx2, x2] -= c * \
+                                mat[blockx, x, blockx2, x2]
+                    v[blocky, y] -= v[blockx, x] * c
     */
-double c;
-for (int j = 0; j < const_length; j++)
-{
-    for (int i = j + 1; (i < j + 2*off_diagonal_number + 1) && (i < const_length); i++)
+    double c;
+    for (int blockx = 0; blockx < sqrtlength; blockx++)
     {
-        c = mat(i, j) / mat(j, j);
-        for (int k = (i - 2 * off_diagonal_number < 0 ? 0 : i - 2 * off_diagonal_number); (k < i + 2 * off_diagonal_number + 1) && (k < const_length); k++)
+        for (int x = 0; x < sqrtlength; x++)
         {
-            mat(i, k) -= mat(j, k) * c;
+            for (int blocky = blockx; (blocky < sqrtlength) && (blocky < blockx + 2 * off_diagonal_number + 1); blocky++)
+            {
+                for (int y = (blockx == blocky) ? (x + 1) : 0; y < sqrtlength; y++)
+                {
+                    c = mat(blocky, y, blockx, x) / mat(blockx, x, blockx, x);
+                    for (int blockx2 = (blocky - 2 * off_diagonal_number < 0 ? 0 : blocky - 2 * off_diagonal_number); (blockx2 < blocky + 2 * off_diagonal_number + 1) && (blockx2 < sqrtlength); blockx2++)
+                    {
+                        for (int x2 = 0; x2 < sqrtlength; x2++)
+                        {
+                            mat(blocky, y, blockx2, x2) -= mat(blockx, x, blockx2, x2) * c;
+                        }
+                    }
+                    v1(blocky, y) -= v1(blockx, x) * c;
+                    v2(blocky, y) -= v2(blockx, x) * c;
+                }
+            }
         }
-        v1[i] -= v1[j] * c;
-        v2[i] -= v2[j] * c;
     }
-    }
-    /*
-    for i in range(l)[::-1]:
-        for j in range(i + 1, min(i + b + 1, l)):
-            v[i] -= mat[i, j] * v[j]
-        v[i] = v[i] / mat[i, i]
-    */
-    
-    for (int i = const_length - 1; i >= 0; i--)
-    {
-        for (int j = i + 1; (j < i + 2 * off_diagonal_number + 1) && (j < const_length); j++)
-        {
-            v1[i] -= mat(i, j) * v1[j];
-            v2[i] -= mat(i, j) * v2[j];
-        }
-        v1[i] = v1[i] / mat(i, i);
-        v2[i] = v2[i] / mat(i, i);
-    }
-    
 
+    /*
+    for blocky in range(l)[::-1]:
+        for y in range(l)[::-1]:
+            for blockx in range(blocky, min(l, blocky + 1 + b)):
+                for x in range((y + 1) * (blockx == blocky), l):
+                    v[blocky, y] -= mat[blocky, y, blockx, x] * v[blockx, x]
+            v[blocky, y] /= mat[blocky, y, blocky, y]
+    */
+
+    for (int blocky = sqrtlength - 1; blockx >= 0; blocky--)
+    {
+        for (int y = sqrtlength - 1; y >= 0; y--)
+        {
+            for (int blockx = blocky; (blockx < sqrtlength) && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
+            {
+                for (int x = (blockx == blocky) ? (y + 1) : 0; x < sqrtlength; x++)
+                {
+                    v1(blocky, y) -= mat(blocky, y, blockx, x) * v1(blockx, x);
+                    v2(blocky, y) -= mat(blocky, y, blockx, x) * v2(blockx, x);
+                }
+            }
+            v1(blocky, y) /= mat(blocky, y, blocky, y);
+            v2(blocky, y) /= mat(blocky, y, blocky, y);
+        }
+    }
+#undef v1
+#undef v2
 #undef mat
 }
 
@@ -146,9 +171,8 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
     double *Hdx_R = malloc(const_length * sizeof(double));
     double *Hdy_R = malloc(const_length * sizeof(double));
     double *Hnd_R = malloc(const_length * const_length * sizeof(double));
-    
 
-#define Hnd_R(i, j) Hnd_R[(i) * const_length + (j)]
+#define Hnd_R(i, j) Hnd_R[(i)*const_length + (j)]
     for (int i = 0; i < const_length; i++)
     {
         Hdx_R[i] = 0;
@@ -200,7 +224,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
         L_y_inter[i] = 0;
         for (size_t j = 0; j < const_length; j++)
         {
-            
+
             Hnd_R_inv_inter(i, j) = 0;
             for (size_t k = 0; k < const_length; k++)
             {
@@ -275,7 +299,7 @@ void rot(double v[3], double q[4], double q_con[4])
     return dVdg/ norm*/
 
 double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg)
+                       double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg)
 {
     double *r_x = (double *)malloc(const_length * sizeof(double));
     double *r_y = (double *)malloc(const_length * sizeof(double));
@@ -317,8 +341,9 @@ double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_n
     for (size_t i = 0; i < const_length; i++)
     {
 
-        for(size_t j=0;j<const_length;j++){
-            dVdg(i, j) = (dVdg(i, j) -weights_not_normed(i, j) * V)/norm;
+        for (size_t j = 0; j < const_length; j++)
+        {
+            dVdg(i, j) = (dVdg(i, j) - weights_not_normed(i, j) * V) / norm;
         }
     }
     V /= 2;

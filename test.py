@@ -3,6 +3,9 @@ import numpy as np
 import cv2
 from copy import deepcopy
 from scipy.linalg import lu
+import time
+
+np.random.seed(5678765)
 
 
 def ind(y, x, l, b):
@@ -36,91 +39,57 @@ def invert(mat, v, l, b):
 
 
 def invert3(mat, v, l, b):
-    matc = np.reshape(deepcopy(mat), (400, 400))
-    print(np.linalg.det(matc))
-    for blockx in range(l):
-        for x in range(l):
-            for blocky in range(blockx, l):
-                for y in range((x + 1) * (blockx == blocky), l):
-                    c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
-                    #if blockx == 0 and blocky == 0 and x == 0:
-                        #print(c)
-                    #matc = np.reshape(deepcopy(mat), (400, 400))
-                    #cv2.imshow('asdf', matc)
-                    #cv2.waitKey(1)
-                    for blockx2 in range(l):
-                        for x2 in range(l):
-                            #if blocky == 0 and y == 10 and blockx2 == 1 and x2 == 0:
-                            #    print(c, mat[blockx, x, blockx2, x2])
-                            mat[blocky, y, blockx2, x2] -= c * mat[blockx, x, blockx2, x2]
-    matc = np.reshape(deepcopy(mat), (400, 400))
-    print(np.linalg.det(matc))
-    return mat
-
-
-def invert2(mat, v, l, b):
     for blockx in range(l):
         for x in range(l):
             for blocky in range(blockx, min(l, blockx + b + 1)):
-                for y in range(max(x - b, (x + 1) * (blockx == blocky)), min(l, x + b + 1)):
+                for y in range((x + 1) * (blockx == blocky), l):
                     c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
-                    # for blockx2 in range(max(0, blocky - b), min(blocky + b + 1, l)):
-                    for blockx2 in range(l):
-                        # for x2 in range(max(0, y - b), min(l, y + b + 1)):
+                    for blockx2 in range(max(0, blocky - b), min(blocky + b + 1, l)):
                         for x2 in range(l):
-                            """
-                            if mat[blocky, blockx2, x, x2] != 0 and x2 > x + b:
-                                print(blocky, blockx2, x, x2)
-                                print(mat[blocky, blockx2])
-                                plt.imshow(mat[blocky, blockx2],cmap='gray')
-                                plt.show()
-                                yuj = 4
-                            """
-                            mat[blocky, y, blockx2, x2] -= c * mat[blockx, x, blockx2,  x2]
+                            mat[blocky, y, blockx2, x2] -= c * \
+                                mat[blockx, x, blockx2, x2]
                     v[blocky, y] -= v[blockx, x] * c
     for blocky in range(l)[::-1]:
         for y in range(l)[::-1]:
             for blockx in range(blocky, min(l, blocky + 1 + b)):
-                for x in range(max(y - b, (y + 1) * (blockx == blocky)), min(l, y + b + 1)):
+                for x in range((y + 1) * (blockx == blocky), l):
                     v[blocky, y] -= mat[blocky, y, blockx, x] * v[blockx, x]
             v[blocky, y] /= mat[blocky, y, blocky, y]
-    p = 1
-    for i in range(l):
-        for j in range(l):
-            #print(mat[i, i, j, j])
-            p *= mat[i, i, j, j]
-    print('det in invert2:', p)
     return v
 
 
-#mat = np.random.rand(20, 20, 20, 20)
+# mat = np.random.rand(20, 20, 20, 20)
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
     mat[i] = np.random.rand() * (i[2] - 5 <= i[0] <= i[2] + 5) * \
         (i[3] - 5 <= i[1] <= i[3] + 5)
-#v = np.random.rand(20, 20)
+v = np.random.rand(20, 20)
+vc = deepcopy(v)
 matc = np.reshape(deepcopy(mat), (400, 400))
 """
+
+
 _, _, u = lu(matc)
 cv2.imshow('asdf', u)
 cv2.waitKey(0)
 """
 cv2.imshow('asdf', matc)
 cv2.waitKey(10)
-mat = invert3(mat, v, 20, 5)
+v = invert3(mat, v, 20, 5)
 mat = np.reshape(mat, (400, 400))
 mat = (abs(mat) > 10**-5)*1.
-plt.imshow(mat, cmap='gray')
-plt.show()
 cv2.imshow('asdf', mat)
-cv2.waitKey(0)
+cv2.waitKey(100)
+cv2.destroyAllWindows()
+v2 = np.reshape(vc, 400)
+v2 = np.linalg.inv(matc) @ v2
+print(np.linalg.norm(v2-np.reshape(v, 400)))
 """
 mat = np.reshape(mat, (400, 400))
 print('nps det:', np.linalg.det(mat))
 v2 = np.reshape(v, 400)
 v2 = np.linalg.inv(mat) @ v2
 print(v2[:10], np.reshape(v, 400)[:10])
-
 
 
 matc = np.reshape(mat, (400, 400))
@@ -135,28 +104,31 @@ cv2.waitKey(0)
 """
 
 
-"""  
+"""
 ran = list(range(28))
 
-a = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + np.diag(np.random.rand(9), -1)
+a = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + \
+            np.diag(np.random.rand(9), -1)
 for i, v in np.ndenumerate(a):
     if v != 0:
-        #print(i,ind2(i[0],i[1],10,1))
-        a[i]=ran[ind2(i[0],i[1],10,1)]/27
+        # print(i,ind2(i[0],i[1],10,1))
+        a[i] = ran[ind2(i[0], i[1], 10, 1)]/27
 plt.imshow(a, cmap='gray')
-#plt.show()
-m1 = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + np.diag(np.random.rand(9), -1)
-m2 = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + np.diag(np.random.rand(9), -1)
-#m1 = np.diag(np.arange(3)) + np.diag(np.arange(2), 1) + np.diag(np.random.rand(9), -1)
-#m1=np.random.rand(10,10)
+# plt.show()
+m1 = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9),
+             1) + np.diag(np.random.rand(9), -1)
+m2 = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9),
+             1) + np.diag(np.random.rand(9), -1)
+# m1 = np.diag(np.arange(3)) + np.diag(np.arange(2), 1) + np.diag(np.random.rand(9), -1)
+# m1=np.random.rand(10,10)
 v = np.random.rand(10)
-#v=np.arange(3)
+# v=np.arange(3)
 res = np.zeros_like(m1)
-l=len(m1)
+l = len(m1)
 for k in range(l):
-    for j in range(max(0,k-2),min(l,k+3)):
-        for i in range(max(0,k-1,j-1),min(l,k+2,j+2)):
+    for j in range(max(0, k-2), min(l, k+3)):
+        for i in range(max(0, k-1, j-1), min(l, k+2, j+2)):
             res[k, j] += m1[k, i] * m2[i, j]
-#print(np.linalg.norm(res - m1 @ m2))
-print(np.linalg.inv(m1)@v-invert(m1,v,10,1))
+# print(np.linalg.norm(res - m1 @ m2))
+print(np.linalg.inv(m1)@v-invert(m1, v, 10, 1))
 """
