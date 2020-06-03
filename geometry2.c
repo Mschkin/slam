@@ -1,12 +1,12 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <gsl/gsl_linalg.h>
+//#include <gsl/gsl_linalg.h>
 #include <stdbool.h>
 
-#define sqrtlength 9
+#define sqrtlength 20
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number const_length - 1
+#define off_diagonal_number 5
 
 /*def ind2(y, x, l, b):
     m = min(y, b)
@@ -29,6 +29,7 @@ int indexb(int y, int x)
 void sparse_invert(double *mat, double *v1, double *v2)
 {
 #define mat(i, k, j, l) mat[indexb(i, j) * const_length + (k)*sqrtlength + (l)]
+//#define mat(i, j, k, l) mat[(i)*sqrtlength*const_length+ (j) * const_length + (k)*sqrtlength + (l)]
 #define v1(i, j) v1[(i)*sqrtlength + (j)]
 #define v2(i, j) v2[(i)*sqrtlength + (j)]
     /*def invert3(mat, v, l, b):
@@ -76,7 +77,7 @@ void sparse_invert(double *mat, double *v1, double *v2)
             v[blocky, y] /= mat[blocky, y, blocky, y]
     */
 
-    for (int blocky = sqrtlength - 1; blockx >= 0; blocky--)
+    for (int blocky = sqrtlength - 1; blocky >= 0; blocky--)
     {
         for (int y = sqrtlength - 1; y >= 0; y--)
         {

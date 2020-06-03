@@ -56,7 +56,7 @@ def invert3(mat, v, l, b):
                     v[blocky, y] -= mat[blocky, y, blockx, x] * v[blockx, x]
             v[blocky, y] /= mat[blocky, y, blocky, y]
     return v
-
+"""
 
 # mat = np.random.rand(20, 20, 20, 20)
 mat = np.zeros((20, 20, 20, 20))
@@ -66,13 +66,13 @@ for i, v in np.ndenumerate(mat):
 v = np.random.rand(20, 20)
 vc = deepcopy(v)
 matc = np.reshape(deepcopy(mat), (400, 400))
-"""
+
 
 
 _, _, u = lu(matc)
 cv2.imshow('asdf', u)
 cv2.waitKey(0)
-"""
+
 cv2.imshow('asdf', matc)
 cv2.waitKey(10)
 v = invert3(mat, v, 20, 5)
@@ -84,7 +84,7 @@ cv2.destroyAllWindows()
 v2 = np.reshape(vc, 400)
 v2 = np.linalg.inv(matc) @ v2
 print(np.linalg.norm(v2-np.reshape(v, 400)))
-"""
+
 mat = np.reshape(mat, (400, 400))
 print('nps det:', np.linalg.det(mat))
 v2 = np.reshape(v, 400)
@@ -101,10 +101,7 @@ mat = np.einsum('ijkl->ikjl', mat)
 mat = np.reshape(mat, (400, 400))
 cv2.imshow('asdf', mat)
 cv2.waitKey(0)
-"""
 
-
-"""
 ran = list(range(28))
 
 a = np.diag(np.random.rand(10)) + np.diag(np.random.rand(9), 1) + \

@@ -1,11 +1,13 @@
 import numpy as np
-from geometry2 import get_rs, get_hessian_parts_R, init_R,dVdg_function,cost_funtion
+from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
+from test import invert3
 from cffi import FFI
 import copy
 import quaternion
 ffi = FFI()
 
-c_header="""void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
+c_header = """void sparse_invert(double *mat, double *v1, double *v2);
+            void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
             void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
             double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
@@ -23,7 +25,45 @@ if __name__ == "__main__":
 from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
+from _geometry2.lib import sparse_invert
 
+mat = np.zeros((20, 20, 20, 20))
+for i, v in np.ndenumerate(mat):
+    mat[i] = np.random.rand() * (i[2] - 10 <= i[0] <= i[2] + 10) * \
+        (i[3] - 10 <= i[1] <= i[3] + 10)
+matc = copy.deepcopy(mat)
+matc = np.einsum('ijkl->ikjl', matc)
+matlist=[]
+for i in range(20):
+    for j in range(20):
+        if i - 10 <= j <= i + 10:
+            matlist.append(matc[i, j])
+matc = np.array(matlist)
+print(len(matc))
+matp = ffi.cast("double*", matc.__array_interface__['data'][0])
+v1 = np.random.rand(20, 20)
+v1c = copy.deepcopy(v1)
+v3 = copy.deepcopy(v1)
+v1p = ffi.cast("double*", v1c.__array_interface__['data'][0])
+v2 = np.random.rand(20, 20)
+v2c = copy.deepcopy(v2)
+v2p = ffi.cast("double*", v2c.__array_interface__['data'][0])
+sparse_invert(matp, v1p, v2p)
+mat2 = copy.deepcopy(mat)
+mat = np.reshape(mat, (400, 400))
+v1 = np.reshape(v1, 400)
+v2 = np.reshape(v2, 400)
+v1c = np.reshape(v1c, 400)
+v2c = np.reshape(v2c, 400)
+invert3(mat2, v3, 20, 10)
+print(np.linalg.norm(np.reshape(v3, 400) - np.linalg.inv(mat) @ v1))
+print(np.linalg.norm(v1c - np.linalg.inv(mat) @ v1))
+print(np.linalg.norm(v2c - np.linalg.inv(mat) @ v2))
+
+
+
+
+"""
 x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(81)
 xp_c = copy.deepcopy(xp)
 yp_c = copy.deepcopy(yp)
@@ -60,3 +100,4 @@ v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hn
 dVdg = dVdg_function(xp, yp, q_true, t_true, weights)
 print(v_c-cost_funtion(xp, yp, q_true, t_true, weights))
 print(np.linalg.norm(dVdg- dVdg_c))
+"""
