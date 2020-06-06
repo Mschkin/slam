@@ -28,7 +28,7 @@ from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from _geometry2.lib import sparse_invert
-
+"""
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
     mat[i] = np.random.rand() * (i[2] - 10 <= i[0] <= i[2] + 10) * \
@@ -54,16 +54,28 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
-x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(81)
+sqrtlength = 20
+const_length = sqrtlength ** 2
+off_diagonal_number = 5
+array_length=const_length*(off_diagonal_number*(-off_diagonal_number+2*sqrtlength-1)+sqrtlength)
+x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(const_length)
+weightslist = []
+for i in range(sqrtlength):
+    for j in range(sqrtlength):
+        if i - off_diagonal_number <= j <= i + off_diagonal_number:
+            weightslist.append(weights[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
+weights=np.array(weightslist)
+xp = np.reshape(xp, (20, 20, 3))
+yp = np.reshape(yp, (20, 20, 3))
 xp_c = copy.deepcopy(xp)
 yp_c = copy.deepcopy(yp)
 xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
 yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
-hdx_c = np.zeros(len(xp))
+hdx_c = np.zeros(const_length)
 hdx_p = ffi.cast('double*', hdx_c.__array_interface__['data'][0])
-hdy_c = np.zeros(len(yp))
+hdy_c = np.zeros(const_length)
 hdy_p = ffi.cast('double*', hdy_c.__array_interface__['data'][0])
-hnd_raw_c = np.zeros(len(xp) * len(yp) * 9)
+hnd_raw_c = np.zeros(array_length * 9)
 hnd_raw_p = ffi.cast(
     'double*', hnd_raw_c.__array_interface__['data'][0])
 # q_c is not changed by the c function!!!
@@ -73,21 +85,21 @@ t_true_c = quaternion.as_float_array(t_true)[1:]
 t_true_p = ffi.new('double[3]', t_true_c.tolist())
 weights_c = copy.deepcopy(weights)
 weights_p = ffi.cast('double*', weights_c.__array_interface__['data'][0])
-r_xc = np.zeros(len(xp))
+r_xc = np.zeros(const_length)
 r_xp = ffi.cast('double*', r_xc.__array_interface__['data'][0])
-r_yc = np.zeros(len(xp))
+r_yc = np.zeros(const_length)
 r_yp = ffi.cast('double*', r_yc.__array_interface__['data'][0])
-hnd_c = np.zeros((len(xp), len(xp)))
+hnd_c = np.zeros(array_length)
 hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
 get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
 dVdg_c = np.zeros((len(xp), len(xp)))
 dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
 #print('what is hepp')
-#fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
-v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
-#hdx, hdy, hnd_raw = get_hessian_parts_R(xp, yp)
-#rx, ry = get_rs(q_true, t_true, weights, xp, yp, hdx, hdy, hnd_raw)
-dVdg = dVdg_function(xp, yp, q_true, t_true, weights)
-print(v_c-cost_funtion(xp, yp, q_true, t_true, weights))
-print(np.linalg.norm(dVdg- dVdg_c))
-"""
+fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
+#v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
+hdx, hdy, hnd_raw = get_hessian_parts_R(xp, yp)
+rx, ry = get_rs(q_true, t_true, weights, xp, yp, hdx, hdy, hnd_raw)
+print(np.linalg.norm(rx - r_xc))
+#dVdg = dVdg_function(xp, yp, q_true, t_true, weights)
+#print(v_c-cost_funtion(xp, yp, q_true, t_true, weights))
+#print(np.linalg.norm(dVdg- dVdg_c))
