@@ -15,14 +15,20 @@
 
 int indexs(int y, int x)
 {
+    if(y-x>off_diagonal_number||x-y>off_diagonal_number){
+        printf("FEHLER:y: %i x: %i \n" ,y,x);
+    }
     int m = (y < off_diagonal_number) ? y : off_diagonal_number;
-    int n = (0 < y - const_length + off_diagonal_number) ? y - const_length + off_diagonal_number : 0;
+    int n = (0 < y - sqrtlength + off_diagonal_number) ? y - sqrtlength + off_diagonal_number : 0;
     return (2 * off_diagonal_number) * y + x - off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
 }
 int indexb(int y, int x)
 {
+    if(y-x>2*off_diagonal_number||x-y>2*off_diagonal_number){
+        printf("FEHLER:y: %i x: %i \n" ,y,x);
+    }
     int m = (y < 2 * off_diagonal_number) ? y : 2 * off_diagonal_number;
-    int n = (0 < y - 2 * const_length + 2 * off_diagonal_number) ? y - const_length + 2 * off_diagonal_number : 0;
+    int n = (0 < y - sqrtlength + 2 * off_diagonal_number) ? y - sqrtlength + 2 * off_diagonal_number : 0;
     return (2 * 2 * off_diagonal_number) * y + x - 2 * off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
 }
 
@@ -54,7 +60,7 @@ void sparse_invert(double *mat, double *v1, double *v2)
                 for (int y = (blockx == blocky) ? (x + 1) : 0; y < sqrtlength; y++)
                 {
                     c = mat(blocky, y, blockx, x) / mat(blockx, x, blockx, x);
-                    for (int blockx2 = (blocky - 2 * off_diagonal_number < 0 ? 0 : blocky - 2 * off_diagonal_number); (blockx2 < blocky + 2 * off_diagonal_number + 1) && (blockx2 < sqrtlength); blockx2++)
+                    for (int blockx2 = blockx; (blockx2 < blockx + 2 * off_diagonal_number + 1) && (blockx2 < sqrtlength); blockx2++)
                     {
                         for (int x2 = 0; x2 < sqrtlength; x2++)
                         {
@@ -63,12 +69,13 @@ void sparse_invert(double *mat, double *v1, double *v2)
                     }
                     v1(blocky, y) -= v1(blockx, x) * c;
                     v2(blocky, y) -= v2(blockx, x) * c;
+                    
                 }
             }
         }
     }
-
     /*
+    printf("norm: %f \n", pr);
     for blocky in range(l)[::-1]:
         for y in range(l)[::-1]:
             for blockx in range(blocky, min(l, blocky + 1 + b)):

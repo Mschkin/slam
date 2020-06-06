@@ -1,9 +1,11 @@
 import numpy as np
 from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
-from test import invert3
+from test import invert3,ind2
 from cffi import FFI
 import copy
 import quaternion
+import matplotlib.pyplot as plt
+import cv2
 ffi = FFI()
 
 c_header = """void sparse_invert(double *mat, double *v1, double *v2);
@@ -39,7 +41,6 @@ for i in range(20):
         if i - 10 <= j <= i + 10:
             matlist.append(matc[i, j])
 matc = np.array(matlist)
-print(len(matc))
 matp = ffi.cast("double*", matc.__array_interface__['data'][0])
 v1 = np.random.rand(20, 20)
 v1c = copy.deepcopy(v1)
@@ -49,17 +50,6 @@ v2 = np.random.rand(20, 20)
 v2c = copy.deepcopy(v2)
 v2p = ffi.cast("double*", v2c.__array_interface__['data'][0])
 sparse_invert(matp, v1p, v2p)
-mat2 = copy.deepcopy(mat)
-mat = np.reshape(mat, (400, 400))
-v1 = np.reshape(v1, 400)
-v2 = np.reshape(v2, 400)
-v1c = np.reshape(v1c, 400)
-v2c = np.reshape(v2c, 400)
-invert3(mat2, v3, 20, 10)
-print(np.linalg.norm(np.reshape(v3, 400) - np.linalg.inv(mat) @ v1))
-print(np.linalg.norm(v1c - np.linalg.inv(mat) @ v1))
-print(np.linalg.norm(v2c - np.linalg.inv(mat) @ v2))
-
 
 
 

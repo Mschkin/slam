@@ -7,7 +7,6 @@ import time
 
 np.random.seed(5678765)
 
-
 def ind(y, x, l, b):
     diagnumber = abs(x - y)
     n = (b - diagnumber) * (l - b) + (b - diagnumber-1) * \
@@ -44,19 +43,37 @@ def invert3(mat, v, l, b):
             for blocky in range(blockx, min(l, blockx + b + 1)):
                 for y in range((x + 1) * (blockx == blocky), l):
                     c = mat[blocky, y, blockx, x] / mat[blockx, x, blockx, x]
-                    for blockx2 in range(max(0, blocky - b), min(blocky + b + 1, l)):
+                    for blockx2 in range(blockx, min(blockx + b + 1, l)):
                         for x2 in range(l):
                             mat[blocky, y, blockx2, x2] -= c * \
                                 mat[blockx, x, blockx2, x2]
                     v[blocky, y] -= v[blockx, x] * c
+                    
+    print('python',np.linalg.norm(v)**2)
     for blocky in range(l)[::-1]:
         for y in range(l)[::-1]:
             for blockx in range(blocky, min(l, blocky + 1 + b)):
                 for x in range((y + 1) * (blockx == blocky), l):
                     v[blocky, y] -= mat[blocky, y, blockx, x] * v[blockx, x]
+                    #if blockx == 7 and blocky == 6 and x == 0 and y == 0:
+                    #    print('phython v:', v[blocky,y])
             v[blocky, y] /= mat[blocky, y, blocky, y]
     return v
+
+
 """
+mat = np.zeros((10, 10), dtype=np.int32)
+mat1 = np.zeros((10, 10), dtype=np.int32)
+a = (i for i in range(100))
+for i in range(10):
+    for j in range(10):
+        if i - 5 <= j <= i + 5:
+            mat[i, j] = next(a)
+            mat1[i, j] = ind2(i, j, 10, 5)
+print(mat)
+print(mat1)
+
+
 
 # mat = np.random.rand(20, 20, 20, 20)
 mat = np.zeros((20, 20, 20, 20))
