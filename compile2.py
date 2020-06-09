@@ -6,6 +6,7 @@ import copy
 import quaternion
 import matplotlib.pyplot as plt
 import cv2
+import time
 ffi = FFI()
 
 c_header = """void sparse_invert(double *mat, double *v1, double *v2);
@@ -54,9 +55,21 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
-sqrtlength = 20
+class timer:
+    lastcall = 0
+
+    def __init__(self):
+        self.lastcall = time.perf_counter()
+
+    def tick(self):
+        call = time.perf_counter()
+        diff = call - self.lastcall
+        self.lastcall = call
+        print(diff)
+        return diff
+sqrtlength = 100
 const_length = sqrtlength ** 2
-off_diagonal_number = 5
+off_diagonal_number = 10
 array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 x, y, b, q_true, t_true, weights_old, xp_old, yp_old, _ = init_R(const_length)
 weights3 = np.zeros_like(weights_old)
@@ -67,8 +80,8 @@ for i in range(sqrtlength):
             weights3[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength] = weights_old[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength]
             weightslist.append(weights_old[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
 weights = np.array(weightslist)
-xp = np.reshape(xp_old, (20, 20, 3))
-yp = np.reshape(yp_old, (20, 20, 3))
+xp = np.reshape(xp_old, (sqrtlength, sqrtlength, 3))
+yp = np.reshape(yp_old, (sqrtlength, sqrtlength, 3))
 xp_c = copy.deepcopy(xp)
 yp_c = copy.deepcopy(yp)
 xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
@@ -98,13 +111,18 @@ dVdg_c = np.zeros(array_length)
 dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
 #print('what is hepp')
 #fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
+tim = timer()
+tim.tick()
 V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
+tim.tick()
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
 #rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
 
 #print(np.linalg.norm(ry - r_yc))
+tim.tick()
 dVdg = dVdg_function(xp_old, yp_old, q_true, t_true, weights3)
+tim.tick()
 dVdglist = []
 for i in range(sqrtlength):
     for j in range(sqrtlength):
@@ -112,4 +130,4 @@ for i in range(sqrtlength):
             dVdglist.append(dVdg[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
 dVdg = np.array(dVdglist)
 print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
-print(np.linalg.norm(np.reshape(dVdg,76000)- dVdg_c))
+print(np.linalg.norm(np.reshape(dVdg,array_length)- dVdg_c))
