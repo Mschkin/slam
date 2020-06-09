@@ -258,7 +258,7 @@ def init_R(zahl):
         y = np.array([np.conjugate(q)*(xi+t)*q for xi in x])
         if np.all(quaternion.as_float_array(y)[:, 3] > 0):
             break
-    weights = np.eye(zahl)+0.1*np.random.rand(zahl, zahl)
+    weights = np.eye(zahl)+1.*np.random.rand(zahl, zahl)
     x = quaternion.as_float_array(x)
     y = quaternion.as_float_array(y)
     xp = np.array([[xi[1]/xi[3], xi[2]/xi[3], 1] for xi in x])

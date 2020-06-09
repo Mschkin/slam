@@ -146,6 +146,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                            double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
+    
 #define hdx_R(i, j) hdx_R[sqrtlength*(i)+(j)]
 #define hdy_R(i, j) hdy_R[sqrtlength*(i)+(j)]
 #define hnd_raw_R(i, j, k, l,m,n) hnd_raw_R[indexs(i,k)*const_length*9 + (j)*sqrtlength*9+(l)*9+(m)*3+(n)]
@@ -224,17 +225,20 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
                          t_true[2] * cos(a) + (u[0] * t_true[0] + u[1] * t_true[1] + u[2] * t_true[2]) * (1 - cos(a)) * u[2] + sin(a) * (t_true[0] * u[1] - t_true[1] * u[0])};
     //L_x = np.einsum('ij,i->i', weights, l_x)
     //L_y = np.einsum('ji,i->i', weights, l_y)
+    
     double *L_x = malloc(const_length * sizeof(double));
     double *L_y = malloc(const_length * sizeof(double));
 #define L_x(i,j) L_x[(i)*sqrtlength+(j)]
 #define L_y(i,j) L_y[(i)*sqrtlength+(j)]
+    norm = 0;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)
         {
             L_x(blocky,y) = 0;
             L_y(blocky,y) = 0;
-            for (int blockx = (blocky-off_diagonal_number<0)?0:blocky-off_diagonal_number; blockx < sqrtlength&&(blockx<blocky+off_diagonal_number+1); blockx++)
+            
+            for (int blockx = (blocky-off_diagonal_number<0)?0:blocky-off_diagonal_number; (blockx < sqrtlength)&&(blockx<(blocky+off_diagonal_number+1)); blockx++)
             {
                 for (int x = 0; x < sqrtlength;x++)
                 {
@@ -244,6 +248,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
             }
         L_x(blocky,y) *= 2 * (xp(blocky,y, 0) * t_true[0] + xp(blocky,y, 1) * t_true[1] + xp(blocky,y, 2) * t_true[2]);
         L_y(blocky,y) *= -2 * (yp(blocky,y, 0) * l_y_vec[0] + yp(blocky,y, 1) * l_y_vec[1] + yp(blocky,y, 2) * l_y_vec[2]);
+        }
     }
     //inv=np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     //rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
@@ -251,6 +256,7 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
 #define Hnd_R_inv_inter(i, j,k,l) Hnd_R_inv_inter[indexb(i,k)*const_length+(j)*sqrtlength + (l)]
     double *L_y_inter = malloc(const_length * sizeof(double));
 #define L_y_inter(i,j) L_y_inter[(i)*sqrtlength+(j)]
+    int count = 0;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0;y<sqrtlength;y++)
@@ -272,13 +278,28 @@ void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_no
                         {
                             Hnd_R_inv_inter(blocky,y, blockx,x) += Hnd_R(blocky,y,block,element) * Hnd_R(blockx,x,block,element) / Hdy_R(block,element);
                         }
-                    }
-                    
+                    }               
                 }
             }
-            Hnd_R_inv_inter(blocky,y, blocky,y) -= Hdx_R(blocky,y);   
+            Hnd_R_inv_inter(blocky,y, blocky,y) -= Hdx_R(blocky,y);
+            norm += Hdy_R(blocky, y) * Hdy_R(blocky, y);
         }
     }
+    for (int i = 0; i < big_array_length;i++){
+        if(Hnd_R_inv_inter[i]*Hnd_R_inv_inter[i]>1.0e-10){
+            count += 1;
+        }
+    }
+    printf("count: %i\n", count);
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 5; j++)
+        {
+            printf(" %f", 1000 * Hnd_R_inv_inter(0, i, 0, j));
+        }
+        printf("\n");
+        }
+        printf("c hdy norm %f\n", norm);
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)

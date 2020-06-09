@@ -22,15 +22,19 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
     #Hnd_R= np.array([hnd_R[f(ind)] *weights(ind) for ind,_ in np.denumerate(weights)])
     Hnd_R = hnd_R * weights
+    
     l_x = 2*np.einsum('ij,j->i', xp, t)
     l_y_vec = t * np.cos(a) + (u@t) * (1 - np.cos(a)) * \
         u + np.sin(a) * np.cross(t, u)
     l_y = -2 * np.einsum('ij,j->i', yp, l_y_vec)
     L_x = np.einsum('ij,i->i', weights, l_x)
     L_y = np.einsum('ji,i->i', weights, l_y)
-    #print(((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))[:5,:5])
+    hnd_inter=((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
+    count=0
+    for i, c in np.ndenumerate(hnd_inter):
+        if c ** 2 > 10 ** -10:
+            count+=1
     inv = np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
-    #print((inv @ L_x)[:5])
     rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
     ry = np.diag(-1 / Hdy_R) @np.transpose(Hnd_R) @ rx - L_y / Hdy_R
     X = -inv

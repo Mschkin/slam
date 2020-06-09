@@ -57,16 +57,18 @@ sparse_invert(matp, v1p, v2p)
 sqrtlength = 20
 const_length = sqrtlength ** 2
 off_diagonal_number = 5
-array_length=const_length*(off_diagonal_number*(-off_diagonal_number+2*sqrtlength-1)+sqrtlength)
-x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(const_length)
+array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+x, y, b, q_true, t_true, weights_old, xp_old, yp_old, _ = init_R(const_length)
+weights3 = np.zeros_like(weights_old)
 weightslist = []
 for i in range(sqrtlength):
     for j in range(sqrtlength):
         if i - off_diagonal_number <= j <= i + off_diagonal_number:
-            weightslist.append(weights[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
-weights=np.array(weightslist)
-xp = np.reshape(xp, (20, 20, 3))
-yp = np.reshape(yp, (20, 20, 3))
+            weights3[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength] = weights_old[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength]
+            weightslist.append(weights_old[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
+weights = np.array(weightslist)
+xp = np.reshape(xp_old, (20, 20, 3))
+yp = np.reshape(yp_old, (20, 20, 3))
 xp_c = copy.deepcopy(xp)
 yp_c = copy.deepcopy(yp)
 xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
@@ -97,9 +99,10 @@ dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
 #print('what is hepp')
 fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
-hdx, hdy, hnd_raw = get_hessian_parts_R(xp, yp)
-rx, ry = get_rs(q_true, t_true, weights, xp, yp, hdx, hdy, hnd_raw)
-print(np.linalg.norm(rx - r_xc))
+hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
+rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
+
+print(np.linalg.norm(ry - r_yc))
 #dVdg = dVdg_function(xp, yp, q_true, t_true, weights)
 #print(v_c-cost_funtion(xp, yp, q_true, t_true, weights))
 #print(np.linalg.norm(dVdg- dVdg_c))
