@@ -9,7 +9,7 @@ import cv2
 ffi = FFI()
 
 c_header = """void sparse_invert(double *mat, double *v1, double *v2);
-            void fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
+            double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
             void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
             double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
@@ -94,15 +94,22 @@ r_yp = ffi.cast('double*', r_yc.__array_interface__['data'][0])
 hnd_c = np.zeros(array_length)
 hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
 get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
-dVdg_c = np.zeros((len(xp), len(xp)))
+dVdg_c = np.zeros(array_length)
 dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
 #print('what is hepp')
-fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
+#fast_findanalytic_R_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, r_xp, r_yp)
+V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
-rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
+#rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
 
-print(np.linalg.norm(ry - r_yc))
-#dVdg = dVdg_function(xp, yp, q_true, t_true, weights)
-#print(v_c-cost_funtion(xp, yp, q_true, t_true, weights))
-#print(np.linalg.norm(dVdg- dVdg_c))
+#print(np.linalg.norm(ry - r_yc))
+dVdg = dVdg_function(xp_old, yp_old, q_true, t_true, weights3)
+dVdglist = []
+for i in range(sqrtlength):
+    for j in range(sqrtlength):
+        if i - off_diagonal_number <= j <= i + off_diagonal_number:
+            dVdglist.append(dVdg[i * sqrtlength : sqrtlength + i * sqrtlength, j * sqrtlength : j * sqrtlength + sqrtlength])
+dVdg = np.array(dVdglist)
+print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
+print(np.linalg.norm(np.reshape(dVdg,76000)- dVdg_c))
