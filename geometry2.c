@@ -3,10 +3,11 @@
 #include <stdio.h>
 //#include <gsl/gsl_linalg.h>
 #include <stdbool.h>
+#include <time.h>
 
-#define sqrtlength 100
+#define sqrtlength 20
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number 10
+#define off_diagonal_number 5
 #define array_length const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 #define big_array_length const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 
@@ -17,20 +18,12 @@
 
 int indexs(int y, int x)
 {
-    if (y - x > off_diagonal_number || x - y > off_diagonal_number)
-    {
-        printf("FEHLER:y: %i x: %i \n", y, x);
-    }
     int m = (y < off_diagonal_number) ? y : off_diagonal_number;
     int n = (0 < y - sqrtlength + off_diagonal_number) ? y - sqrtlength + off_diagonal_number : 0;
     return (2 * off_diagonal_number) * y + x - off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
 }
 int indexb(int y, int x)
 {
-    if (y - x > 2 * off_diagonal_number || x - y > 2 * off_diagonal_number)
-    {
-        printf("FEHLER:y: %i x: %i \n", y, x);
-    }
     int m = (y < 2 * off_diagonal_number) ? y : 2 * off_diagonal_number;
     int n = (0 < y - sqrtlength + 2 * off_diagonal_number) ? y - sqrtlength + 2 * off_diagonal_number : 0;
     return (2 * 2 * off_diagonal_number) * y + x - 2 * off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
@@ -38,6 +31,7 @@ int indexb(int y, int x)
 
 void sparse_invert(double *mat, double *v1, double *v2)
 {
+    clock_t start = clock(), diff;
 #define mat(i, k, j, l) mat[indexb(i, j) * const_length + (k)*sqrtlength + (l)]
 //#define mat(i, j, k, l) mat[(i)*sqrtlength*const_length+ (j) * const_length + (k)*sqrtlength + (l)]
 #define v1(i, j) v1[(i)*sqrtlength + (j)]
@@ -106,6 +100,9 @@ void sparse_invert(double *mat, double *v1, double *v2)
 #undef v1
 #undef v2
 #undef mat
+    diff = clock() - start;
+    int msec = diff * 1000 / CLOCKS_PER_SEC;
+    printf("invert took %i msec\n", msec);
 }
 /*def get_hessian_parts_R(xp, yp):
     hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
@@ -234,6 +231,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     double *L_x = malloc(const_length * sizeof(double));
     double *L_y = malloc(const_length * sizeof(double));
+    double *L_y_inter = malloc(const_length * sizeof(double));
+#define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
 #define L_x(i, j) L_x[(i)*sqrtlength + (j)]
 #define L_y(i, j) L_y[(i)*sqrtlength + (j)]
     for (int blocky = 0; blocky < sqrtlength; blocky++)
@@ -242,6 +241,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
         {
             L_x(blocky, y) = 0;
             L_y(blocky, y) = 0;
+            L_y_inter(blocky, y) = 0;
 
             for (int blockx = (blocky - off_diagonal_number < 0) ? 0 : blocky - off_diagonal_number; (blockx < sqrtlength) && (blockx < (blocky + off_diagonal_number + 1)); blockx++)
             {
@@ -258,42 +258,60 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     //inv=np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     //rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
-    double *Hnd_R_inv_inter = malloc(big_array_length * sizeof(double));
+    double *Hnd_R_inv_inter = calloc(big_array_length, sizeof(double));
+//#define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
 #define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
-    double *L_y_inter = malloc(const_length * sizeof(double));
-#define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
-
+    clock_t start = clock(), diff;
+    int index_Hnd_inv = 0;
+    int index_Hnd_x = 0;
+    int index_Hnd_y = 0;
+    int index_Hdy = 0;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
-        for (int y = 0; y < sqrtlength; y++)
+        for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
         {
-            L_y_inter(blocky, y) = 0;
-            for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
+            index_Hnd_inv = indexb(blocky, blockx) * const_length;
+            //max(0,blockx-b,blocky-b),min(l,blockx+b+1,blocky+b+1)
+            int lower_bound = blockx - off_diagonal_number < 0 ? 0 : blockx - off_diagonal_number;
+            lower_bound = lower_bound > blocky - off_diagonal_number ? lower_bound : blocky - off_diagonal_number;
+            int upper_bound = sqrtlength > blockx + off_diagonal_number + 1 ? blockx + off_diagonal_number + 1 : sqrtlength;
+            upper_bound = upper_bound < blocky + off_diagonal_number + 1 ? upper_bound : blocky + off_diagonal_number + 1;
+            index_Hnd_y = indexs(blocky, lower_bound) * const_length;
+            index_Hnd_x = indexs(blockx, lower_bound) * const_length;
+            for (int block = lower_bound; block < upper_bound; block++)
             {
-                for (int x = 0; x < sqrtlength; x++)
+                for (int y = 0; y < sqrtlength; y++)
                 {
-                    Hnd_R_inv_inter(blocky, y, blockx, x) = 0;
-                    //max(0,blockx-b,blocky-b),min(l,blockx+b+1,blocky+b+1)
-                    int lower_bound = blockx - off_diagonal_number < 0 ? 0 : blockx - off_diagonal_number;
-                    lower_bound = lower_bound > blocky - off_diagonal_number ? lower_bound : blocky - off_diagonal_number;
-                    int upper_bound = sqrtlength > blockx + off_diagonal_number + 1 ? blockx + off_diagonal_number + 1 : sqrtlength;
-                    upper_bound = upper_bound < blocky + off_diagonal_number + 1 ? upper_bound : blocky + off_diagonal_number + 1;
-                    for (int block = lower_bound; block < upper_bound; block++)
+                    for (int x = 0; x < sqrtlength; x++)
                     {
                         for (int element = 0; element < sqrtlength; element++)
                         {
-                            Hnd_R_inv_inter(blocky, y, blockx, x) += Hnd_R(blocky, y, block, element) * Hnd_R(blockx, x, block, element) / Hdy_R(block, element);
+                            Hnd_R_inv_inter[index_Hnd_inv] += Hnd_R[index_Hnd_y] * Hnd_R[index_Hnd_x] / Hdy_R[index_Hdy];
+                            index_Hnd_y++;
+                            index_Hnd_x++;
+                            index_Hdy++;
                         }
+                        index_Hnd_y -= sqrtlength;
+                        index_Hdy -= sqrtlength;
+                        index_Hnd_inv++;
                     }
+                    index_Hnd_y += sqrtlength;
+                    index_Hnd_x -= const_length;
                 }
+                index_Hnd_x += const_length;
+                index_Hnd_inv -= const_length;
+                index_Hdy += sqrtlength;
             }
-            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdx_R(blocky, y);
         }
     }
+    diff = clock() - start;
+    int msec = diff * 1000 / CLOCKS_PER_SEC;
+    printf("the mult took %i msec\n", msec);
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)
         {
+            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdx_R(blocky, y);
             for (int blockx = (blocky - off_diagonal_number < 0) ? 0 : blocky - off_diagonal_number; blockx < sqrtlength && (blockx < blocky + off_diagonal_number + 1); blockx++)
             {
                 for (int x = 0; x < sqrtlength; x++)
