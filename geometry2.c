@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <time.h>
 
-#define sqrtlength 100
+#define sqrtlength 20
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number 10
+#define off_diagonal_number 8
 #define array_length const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 #define big_array_length const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 
@@ -31,6 +31,8 @@ int indexb(int y, int x)
 
 void sparse_invert(double *mat, double *v1, double *v2)
 {
+    clock_t start = clock(), diff;
+
 #define mat(i, k, j, l) mat[indexb(i, j) * const_length + (k)*sqrtlength + (l)]
 //#define mat(i, j, k, l) mat[(i)*sqrtlength*const_length+ (j) * const_length + (k)*sqrtlength + (l)]
 #define v1(i, j) v1[(i)*sqrtlength + (j)]
@@ -122,6 +124,9 @@ void sparse_invert(double *mat, double *v1, double *v2)
 #undef v1
 #undef v2
 #undef mat
+    diff = clock() - start;
+    int msec = diff * 1000 / CLOCKS_PER_SEC;
+    printf("invert took %i msec\n", msec);
 }
 /*def get_hessian_parts_R(xp, yp):
     hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
@@ -250,6 +255,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     double *L_x = malloc(const_length * sizeof(double));
     double *L_y = malloc(const_length * sizeof(double));
+    double *Hnd_R_divided = malloc(array_length * sizeof(double));
+#define Hnd_R_divided(i, j, k, l) Hnd_R_divided[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
 #define L_x(i, j) L_x[(i)*sqrtlength + (j)]
 #define L_y(i, j) L_y[(i)*sqrtlength + (j)]
     for (int blocky = 0; blocky < sqrtlength; blocky++)
@@ -263,6 +270,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             {
                 for (int x = 0; x < sqrtlength; x++)
                 {
+                    Hnd_R_divided(blocky, y, blockx, x) = Hnd_R(blocky, y, blockx, x) / Hdy_R(blockx, x);
                     L_x(blocky, y) += weights(blocky, y, blockx, x);
                     L_y(blocky, y) += weights(blockx, x, blocky, y);
                 }
@@ -281,7 +289,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     int Hnd_inv_index;
     int Hnd_indexy;
     int Hnd_indexx;
-    int Hdy_index = 0;
+    int save;
+    clock_t start = clock(), diff;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
@@ -294,24 +303,20 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             Hnd_inv_index = indexb(blocky, blockx) * const_length;
             for (int block = lower_bound; block < upper_bound; block++)
             {
-                Hdy_index = block * sqrtlength;
                 Hnd_indexy = indexs(blocky, block) * const_length;
                 Hnd_indexx = indexs(blockx, block) * const_length;
+                save = Hnd_indexx;
                 for (int y = 0; y < sqrtlength; y++)
                 {
                     for (int x = 0; x < sqrtlength; x++)
                     {
-                        for (int element = 0; element < sqrtlength; element++)
+                        for (; Hnd_indexx<save+ (x + 1) * sqrtlength; Hnd_indexx++)
                         {
-
-                            Hnd_R_inv_inter[Hnd_inv_index] += Hnd_R[Hnd_indexy] * Hnd_R[Hnd_indexx] / Hdy_R[Hdy_index];
+                            Hnd_R_inv_inter[Hnd_inv_index] += Hnd_R_divided[Hnd_indexy] * Hnd_R[Hnd_indexx];
                             Hnd_indexy++;
-                            Hnd_indexx++;
-                            Hdy_index++;
                         }
                         Hnd_inv_index++;
                         Hnd_indexy -= sqrtlength;
-                        Hdy_index -= sqrtlength;
                     }
                     Hnd_indexx -= const_length;
                     Hnd_indexy += sqrtlength;
@@ -320,6 +325,9 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             }
         }
     }
+    diff = clock() - start;
+    int msec = diff * 1000 / CLOCKS_PER_SEC;
+    printf("matmul took %i msec\n", msec);
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)
@@ -365,6 +373,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     free(L_y);
     free(weights);
     free(L_y_inter);
+    free(Hnd_R_divided);
 #undef hnd_raw_R
 #undef Hnd_R
 #undef Hnd_R_inv_inter
@@ -383,6 +392,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 #undef Hdx_R
 #undef hdy_R
 #undef Hdy_R
+#undef Hnd_R_divided
     return norm;
 }
 void q_mult(double q1[4], double q2[4], double qr[4])

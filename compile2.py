@@ -67,9 +67,9 @@ class timer:
         self.lastcall = call
         print(diff)
         return diff
-sqrtlength = 100
+sqrtlength = 20
 const_length = sqrtlength ** 2
-off_diagonal_number = 10
+off_diagonal_number = 8
 array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 x, y, b, q_true, t_true, weights_old, xp_old, yp_old, _ = init_R(const_length)
 weights3 = np.zeros_like(weights_old)
@@ -115,7 +115,7 @@ tim = timer()
 tim.tick()
 V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 tim.tick()
-"""
+
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
 #rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
@@ -133,4 +133,3 @@ for i in range(sqrtlength):
 dVdg = np.array(dVdglist)
 print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
 print(np.linalg.norm(np.reshape(dVdg,array_length)- dVdg_c))
-"""
