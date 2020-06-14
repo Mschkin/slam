@@ -3,6 +3,7 @@
 #include <stdio.h>
 //#include <gsl/gsl_linalg.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define sqrtlength 100
 #define const_length sqrtlength *sqrtlength
@@ -88,7 +89,7 @@ void sparse_invert(double *mat, double *v1, double *v2)
                 c_index += (blockx == blocky) ? (sqrtlength - y) : 0;
                 mat_xx -= (blockx == blocky) ? ((sqrtlength + 1) * y) : const_length + sqrtlength;
                 mat_y_index += sqrtlength;
-                mat_x_index -= (blockx == blocky) ? (sqrtlength  * y) : const_length;
+                mat_x_index -= (blockx == blocky) ? (sqrtlength * y) : const_length;
             }
         }
     }
