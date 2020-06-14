@@ -115,12 +115,14 @@ tim = timer()
 tim.tick()
 V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 tim.tick()
+"""
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
 #rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
 
 #print(np.linalg.norm(ry - r_yc))
 tim.tick()
+
 dVdg = dVdg_function(xp_old, yp_old, q_true, t_true, weights3)
 tim.tick()
 dVdglist = []
@@ -131,3 +133,4 @@ for i in range(sqrtlength):
 dVdg = np.array(dVdglist)
 print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
 print(np.linalg.norm(np.reshape(dVdg,array_length)- dVdg_c))
+"""

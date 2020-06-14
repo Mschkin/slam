@@ -17,20 +17,12 @@
 
 int indexs(int y, int x)
 {
-    if (y - x > off_diagonal_number || x - y > off_diagonal_number)
-    {
-        printf("FEHLER:y: %i x: %i \n", y, x);
-    }
     int m = (y < off_diagonal_number) ? y : off_diagonal_number;
     int n = (0 < y - sqrtlength + off_diagonal_number) ? y - sqrtlength + off_diagonal_number : 0;
     return (2 * off_diagonal_number) * y + x - off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
 }
 int indexb(int y, int x)
 {
-    if (y - x > 2 * off_diagonal_number || x - y > 2 * off_diagonal_number)
-    {
-        printf("FEHLER:y: %i x: %i \n", y, x);
-    }
     int m = (y < 2 * off_diagonal_number) ? y : 2 * off_diagonal_number;
     int n = (0 < y - sqrtlength + 2 * off_diagonal_number) ? y - sqrtlength + 2 * off_diagonal_number : 0;
     return (2 * 2 * off_diagonal_number) * y + x - 2 * off_diagonal_number * m + m * (m + 1) / 2 - n * (n + 1) / 2;
@@ -55,25 +47,48 @@ void sparse_invert(double *mat, double *v1, double *v2)
                     v[blocky, y] -= v[blockx, x] * c
     */
     double c;
+    int c_index;
+    int mat_x_index;
+    int mat_y_index;
+    int mat_xx;
     for (int blockx = 0; blockx < sqrtlength; blockx++)
     {
-        for (int x = 0; x < sqrtlength; x++)
+        mat_xx = indexb(blockx, blockx) * const_length;
+        mat_x_index = mat_xx;
+        for (int blocky = blockx; (blocky < sqrtlength) && (blocky < blockx + 2 * off_diagonal_number + 1); blocky++)
         {
-            for (int blocky = blockx; (blocky < sqrtlength) && (blocky < blockx + 2 * off_diagonal_number + 1); blocky++)
+            c_index = indexb(blocky, blockx) * const_length;
+            mat_y_index = c_index;
+            for (int y = 0; y < sqrtlength; y++)
             {
-                for (int y = (blockx == blocky) ? (x + 1) : 0; y < sqrtlength; y++)
+                for (int x = 0; x < (blockx == blocky ? y : sqrtlength); x++)
                 {
-                    c = mat(blocky, y, blockx, x) / mat(blockx, x, blockx, x);
+                    c = mat[c_index] / mat[mat_xx];
+                    c_index++;
+                    mat_xx += sqrtlength + 1;
                     for (int blockx2 = blockx; (blockx2 < blockx + 2 * off_diagonal_number + 1) && (blockx2 < sqrtlength); blockx2++)
                     {
                         for (int x2 = 0; x2 < sqrtlength; x2++)
                         {
-                            mat(blocky, y, blockx2, x2) -= mat(blockx, x, blockx2, x2) * c;
+                            mat[mat_y_index] -= mat[mat_x_index] * c;
+                            mat_y_index++;
+                            mat_x_index++;
                         }
+                        mat_y_index -= sqrtlength;
+                        mat_y_index += const_length;
+                        mat_x_index -= sqrtlength;
+                        mat_x_index += const_length;
                     }
                     v1(blocky, y) -= v1(blockx, x) * c;
                     v2(blocky, y) -= v2(blockx, x) * c;
+                    mat_y_index -= (blockx + 2 * off_diagonal_number + 1) > sqrtlength ? (sqrtlength - blockx) * const_length : (2 * off_diagonal_number + 1) * const_length;
+                    mat_x_index -= (blockx + 2 * off_diagonal_number + 1) > sqrtlength ? (sqrtlength - blockx) * const_length : (2 * off_diagonal_number + 1) * const_length;
+                    mat_x_index += sqrtlength;
                 }
+                c_index += (blockx == blocky) ? (sqrtlength - y) : 0;
+                mat_xx -= (blockx == blocky) ? ((sqrtlength + 1) * y) : const_length + sqrtlength;
+                mat_y_index += sqrtlength;
+                mat_x_index -= (blockx == blocky) ? (sqrtlength  * y) : const_length;
             }
         }
     }
@@ -258,42 +273,57 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     //inv=np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     //rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
-    double *Hnd_R_inv_inter = malloc(big_array_length * sizeof(double));
+    double *Hnd_R_inv_inter = calloc(big_array_length, sizeof(double));
 #define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
-    double *L_y_inter = malloc(const_length * sizeof(double));
+    double *L_y_inter = calloc(const_length, sizeof(double));
 #define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
-
+    int Hnd_inv_index;
+    int Hnd_indexy;
+    int Hnd_indexx;
+    int Hdy_index = 0;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
-        for (int y = 0; y < sqrtlength; y++)
+        for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
         {
-            L_y_inter(blocky, y) = 0;
-            for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
+            //max(0,blockx-b,blocky-b),min(l,blockx+b+1,blocky+b+1)
+            int lower_bound = blockx - off_diagonal_number < 0 ? 0 : blockx - off_diagonal_number;
+            lower_bound = lower_bound > blocky - off_diagonal_number ? lower_bound : blocky - off_diagonal_number;
+            int upper_bound = sqrtlength > blockx + off_diagonal_number + 1 ? blockx + off_diagonal_number + 1 : sqrtlength;
+            upper_bound = upper_bound < blocky + off_diagonal_number + 1 ? upper_bound : blocky + off_diagonal_number + 1;
+            Hnd_inv_index = indexb(blocky, blockx) * const_length;
+            for (int block = lower_bound; block < upper_bound; block++)
             {
-                for (int x = 0; x < sqrtlength; x++)
+                Hdy_index = block * sqrtlength;
+                Hnd_indexy = indexs(blocky, block) * const_length;
+                Hnd_indexx = indexs(blockx, block) * const_length;
+                for (int y = 0; y < sqrtlength; y++)
                 {
-                    Hnd_R_inv_inter(blocky, y, blockx, x) = 0;
-                    //max(0,blockx-b,blocky-b),min(l,blockx+b+1,blocky+b+1)
-                    int lower_bound = blockx - off_diagonal_number < 0 ? 0 : blockx - off_diagonal_number;
-                    lower_bound = lower_bound > blocky - off_diagonal_number ? lower_bound : blocky - off_diagonal_number;
-                    int upper_bound = sqrtlength > blockx + off_diagonal_number + 1 ? blockx + off_diagonal_number + 1 : sqrtlength;
-                    upper_bound = upper_bound < blocky + off_diagonal_number + 1 ? upper_bound : blocky + off_diagonal_number + 1;
-                    for (int block = lower_bound; block < upper_bound; block++)
+                    for (int x = 0; x < sqrtlength; x++)
                     {
                         for (int element = 0; element < sqrtlength; element++)
                         {
-                            Hnd_R_inv_inter(blocky, y, blockx, x) += Hnd_R(blocky, y, block, element) * Hnd_R(blockx, x, block, element) / Hdy_R(block, element);
+
+                            Hnd_R_inv_inter[Hnd_inv_index] += Hnd_R[Hnd_indexy] * Hnd_R[Hnd_indexx] / Hdy_R[Hdy_index];
+                            Hnd_indexy++;
+                            Hnd_indexx++;
+                            Hdy_index++;
                         }
+                        Hnd_inv_index++;
+                        Hnd_indexy -= sqrtlength;
+                        Hdy_index -= sqrtlength;
                     }
+                    Hnd_indexx -= const_length;
+                    Hnd_indexy += sqrtlength;
                 }
+                Hnd_inv_index -= const_length;
             }
-            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdx_R(blocky, y);
         }
     }
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)
         {
+            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdx_R(blocky, y);
             for (int blockx = (blocky - off_diagonal_number < 0) ? 0 : blocky - off_diagonal_number; blockx < sqrtlength && (blockx < blocky + off_diagonal_number + 1); blockx++)
             {
                 for (int x = 0; x < sqrtlength; x++)
