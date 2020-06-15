@@ -55,6 +55,45 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
+def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
+    xp_c = copy.deepcopy(xp)
+    yp_c = copy.deepcopy(yp)
+    xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
+    yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
+    hdx_c = np.zeros(const_length)
+    hdx_p = ffi.cast('double*', hdx_c.__array_interface__['data'][0])
+    hdy_c = np.zeros(const_length)
+    hdy_p = ffi.cast('double*', hdy_c.__array_interface__['data'][0])
+    hnd_raw_c = np.zeros(array_length * 9)
+    hnd_raw_p = ffi.cast(
+        'double*', hnd_raw_c.__array_interface__['data'][0])
+    get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
+    return hdx_p,hdy_p,hnd_raw_p
+
+def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p):
+    xp_c = copy.deepcopy(xp)
+    yp_c = copy.deepcopy(yp)
+    xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
+    yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
+    q_truec = quaternion.as_float_array(q_true)
+    q_truep = ffi.new('double[4]', q_truec.tolist())
+    t_true_c = quaternion.as_float_array(t_true)[1:]
+    t_true_p = ffi.new('double[3]', t_true_c.tolist())
+    weights_c = copy.deepcopy(weights)
+    weights_p = ffi.cast('double*', weights_c.__array_interface__['data'][0])
+    r_xc = np.zeros(const_length)
+    r_xp = ffi.cast('double*', r_xc.__array_interface__['data'][0])
+    r_yc = np.zeros(const_length)
+    r_yp = ffi.cast('double*', r_yc.__array_interface__['data'][0])
+    hnd_c = np.zeros(array_length)
+    hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
+    dVdg_c = np.zeros(array_length)
+    dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
+    V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
+    return V_c,dVdg_c
+
+
+
 class timer:
     lastcall = 0
 
@@ -67,9 +106,9 @@ class timer:
         self.lastcall = call
         print(diff)
         return diff
-sqrtlength = 20
+sqrtlength = 30
 const_length = sqrtlength ** 2
-off_diagonal_number = 8
+off_diagonal_number = 5
 array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 x, y, b, q_true, t_true, weights_old, xp_old, yp_old, _ = init_R(const_length)
 weights3 = np.zeros_like(weights_old)

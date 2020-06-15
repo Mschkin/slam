@@ -4,6 +4,9 @@ from scipy.special import expit
 from copy import deepcopy
 from geometry import find_BT_from_BT
 import cProfile
+from _geometry2.lib import get_hessian_parts_R_c
+from _geometry2.lib import dVdg_function_c
+from compile2 import dVdg_wrapper, get_hessian_parts_wrapper
 
 
 def test_finder(I):
@@ -37,6 +40,7 @@ def splittimg(I):
             r[i, j] = I[:, 3 * i:30 + 3 * i, 3 * j:3 * j + 30]
     # print(r.dtype)
     return r / 255 - .5
+
 
 """
 def trans_rot_norm(x, y, t, q, focal_lenght, x3, y3):
@@ -102,8 +106,6 @@ def min_larange_finder(lagrange_weights, depthx, depthy, q, t):
     return q,t,depthx,depthy
 """
 
-    
-
 
 def pipeline(I1, I2):
     parts1 = splittimg(I1)
@@ -139,13 +141,21 @@ def pipeline(I1, I2):
                                depth1, depth2, rot, t)
     """
     xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
-        (99)), 50*np.ones((99))), axis = -1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis = -1)) - 49
-    xp = np.reshape(xp, (99 * 99, 3))
+        (99)), 50*np.ones((99))), axis=-1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis=-1)) - 49
     yp = xp
-    weights=np.reshape(weights,(99*99,99*99))
-    bt_true = np.random.rand(6)
-    bt = find_BT_from_BT(bt_true, xp, yp, weights)
-    return bt
+    t_true = np.random.rand(3)
+    q_true = .1*np.random.rand(3)
+    q_true = np.array([(1-q_true@q_true)**.5]+list(q_true))
+    sqrtlength = 99
+    const_length = sqrtlength ** 2
+    off_diagonal_number = 10
+    array_length = const_length * \
+        (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+    hdx_p, hdy_p, hnd_raw_p = get_hessian_parts_wrapper(
+        xp, yp, const_length, array_length)
+    V, dVdg = dVdg_wrapper(xp, yp, weights, q_true,
+                           t_true, hdx_p, hdy_p, hnd_raw_p)
+    
 
 
 def numericdiff(f, inpt, index):
@@ -165,7 +175,6 @@ def numericdiff(f, inpt, index):
                 f(*(inpt[:inputnumber] + [n] + inpt[inputnumber + 1:])) - r) / h
         der.append(ten)
     return der
-    
 
 
 I1 = np.random.randint(0, 255, (324, 324, 3))
