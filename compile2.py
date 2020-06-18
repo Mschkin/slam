@@ -70,14 +70,14 @@ def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
     get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
     return hdx_p,hdy_p,hnd_raw_p
 
-def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p):
+def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p,const_length,array_length):
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
     yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
-    q_truec = quaternion.as_float_array(q_true)
+    q_truec = q_true
     q_truep = ffi.new('double[4]', q_truec.tolist())
-    t_true_c = quaternion.as_float_array(t_true)[1:]
+    t_true_c = t_true
     t_true_p = ffi.new('double[3]', t_true_c.tolist())
     weights_c = copy.deepcopy(weights)
     weights_p = ffi.cast('double*', weights_c.__array_interface__['data'][0])
@@ -106,9 +106,10 @@ class timer:
         self.lastcall = call
         print(diff)
         return diff
-sqrtlength = 30
+"""
+sqrtlength = 99
 const_length = sqrtlength ** 2
-off_diagonal_number = 5
+off_diagonal_number = 10
 array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 x, y, b, q_true, t_true, weights_old, xp_old, yp_old, _ = init_R(const_length)
 weights3 = np.zeros_like(weights_old)
@@ -172,3 +173,4 @@ for i in range(sqrtlength):
 dVdg = np.array(dVdglist)
 print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
 print(np.linalg.norm(np.reshape(dVdg,array_length)- dVdg_c))
+"""

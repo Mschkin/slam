@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <time.h>
 
-#define sqrtlength 30
+#define sqrtlength 99
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number 5
+#define off_diagonal_number 10
 #define array_length const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 #define big_array_length const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 
@@ -173,6 +173,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                              double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
+    printf(" q0 %f");
 
 #define hdx_R(i, j) hdx_R[sqrtlength * (i) + (j)]
 #define hdy_R(i, j) hdy_R[sqrtlength * (i) + (j)]

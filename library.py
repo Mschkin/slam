@@ -7,9 +7,12 @@ import numpy as np
 def conv(f, I):
     # I: farbe unten rechts
     # f: filterzahl unten rechts farbe
-    I = np.swapaxes(np.swapaxes(I, 0, 2), 0, 1)
-    c = np.array([convolve(f[i, ::-1, ::-1, ::-1], I, mode='valid')
-                  [:, :, 0] for i in range(len(f))])
+    #I = np.swapaxes(np.swapaxes(I, 0, 2), 0, 1)
+    #c = np.array([convolve(f[i, ::-1, ::-1, ::-1], I, mode='valid')[:, :, 0] for i in range(len(f))])
+    si=np.shape(I)
+    sf=np.shape(f)
+    c = np.array([np.random.rand(si[1]-sf[1]+1,si[2]-sf[2]+1) for i in range(len(f))])
+    #print(si,sf)
     # c: filterzahl unten rechts
     return c
 
