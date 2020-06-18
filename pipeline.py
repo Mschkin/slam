@@ -8,6 +8,19 @@ from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from compile2 import dVdg_wrapper, get_hessian_parts_wrapper
 
+modelclass_fd = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+    'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (36,)), ('fully_connected', (9, 36)), ('sigmoid', None)], (3, 30, 30))
+filter1 = np.random.rand(3, 6, 6, 3)
+filter2 = np.random.rand(3, 6, 6, 3)
+filter3 = np.random.rand(2, 5, 5, 3)
+filter4 = np.random.rand(4, 4, 4, 2)
+fullyconneted = np.random.rand(9, 36)
+compare = np.random.rand(1, 18)
+
+test_finder = modelclass_fd([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
+test_discribe = modelclass_fd([filter1, None, filter2, None, filter3, None, filter4, None, None, fullyconneted, None])
+compare_class = modelbuilder([('fully_conneted', (1, 18)), ('sigmoid', None)], (18,))
+compare_net = compare_class([compare, None])
 
 def test_finder(I):
     assert np.shape(I) == (3, 30, 30)

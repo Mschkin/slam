@@ -30,7 +30,10 @@ def modelbuilder(tuple_list, input_dimension_numbers):
             self.call_list = []
             #self.input_dimensions = input_dimensions
             self.back_list = []
-            self.derivative_list = []
+            self.derivative_functions = []
+            self.propagation_values = []
+            self.derivative_values = []
+            self.learing_rate = .3
             for n, (kind, dimensions) in enumerate(tuple_list):
                 if kind == 'fully_connected':
                     if type(weight_list[n]) == type(None):
@@ -97,39 +100,42 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.back_list.append(generator_back_view(dimensions))
             for n, (kind, dimensions) in enumerate(tuple_list[::-1]):
                 if kind == 'fully_connected':
-                    self.derivative_list.append(
+                    self.derivative_functions.append(
                         generator_derivative_fully_connected(self, n))
                 elif kind == 'filter':
-                    self.derivative_list.append(
+                    self.derivative_functions.append(
                         generator_derivative_filter(self, n))
                 else:
-                    self.derivative_list.append(None)
+                    self.derivative_functions.append(None)
 
         def __call__(self, inp):
+            self.propagation_values=[inp]
             for func in self.call_list:
-                inp = func(inp)
-            return inp
+                self.propagation_values.append(func(self.propagation_values[-1]))
+            return self.propagation_values[-1]
 
-        def calculate_derivatives(self, inp):
-            propagation_values = [inp]
-            for func in self.call_list:
-                propagation_values.append(func(propagation_values[-1]))
-            derivatives = []
-            first_old_back = np.zeros(
-                np.shape(propagation_values[-1]) + np.shape(propagation_values[-1]))
-            for i, _ in np.ndenumerate(propagation_values[-1]):
-                first_old_back[i + i] = 1
+        def calculate_derivatives(self, inp,first_old_back):
+            self.derivative_values = []
             back_progation_values = [first_old_back]
             # print(back_progation_values[-1])
-            # print(self.derivative_list)
+            # print(self.derivative_functions)
             for n, func in enumerate(self.back_list):
-                if self.derivative_list[n] != None:
+                if self.derivative_functions[n] != None:
                     print('derivative', n, func.__name__)
-                    derivatives.append(
-                        self.derivative_list[n](back_progation_values[-1], propagation_values[-n - 2]))
+                    self.derivative_values.append(
+                        self.derivative_functions[n](back_progation_values[-1], self.propagation_values[-n - 2]))
+                else:
+                    self.derivative_values.append(None)
                 back_progation_values.append(
-                    func(back_progation_values[-1], propagation_values[-n - 2]))
-            return back_progation_values, derivatives
+                    func(back_progation_values[-1], self.propagation_values[-n - 2]))
+            self.derivative_values=self.derivative_values[::-1]
+            return back_progation_values
+        
+        def update_weights(self):
+            for i in range(len(self.weight_list)):
+                if not self.weight_list[i] == None:
+                    self.weight_list[i] -= self.learing_rate * self.derivative_values[i]
+
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):
