@@ -68,7 +68,8 @@ def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
     hnd_raw_p = ffi.cast(
         'double*', hnd_raw_c.__array_interface__['data'][0])
     get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
-    return hdx_p,hdy_p,hnd_raw_p
+    print(hdx_c[0],hdy_c[0],hnd_raw_c[0])
+    return hdx_p,hdy_p,hnd_raw_p,[hdx_c,hdy_c,hnd_raw_c]
 
 def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p,const_length,array_length):
     xp_c = copy.deepcopy(xp)
