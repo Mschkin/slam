@@ -2,7 +2,7 @@ import numpy as np
 import quaternion
 from scipy.special import expit
 from copy import deepcopy
-from library import modelbuilder,phasespace_view
+from library import modelbuilder, phasespace_view
 import cProfile
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
@@ -31,7 +31,7 @@ filter_describe = modelclass_convolve(
 full_finder = modelclass_full([None, fullyconneted, None])
 full_describe = modelclass_full([None, fullyconneted, None])
 compare_class = modelbuilder(
-    [('fully_conneted', (1, 18)), ('sigmoid', None)], (18,))
+    [('fully_connected', (1, 18)), ('sigmoid', None)], (18,))
 compare_net = compare_class([compare, None])
 
 
@@ -71,53 +71,44 @@ def pipeline(I1, I2):
     parts1 = splittimg(flow_weights1)
     parts2 = splittimg(flow_weights1)
     parts1 = np.array([[full_finder(parts1[i, j]) for i in range(99)]
-              for j in range(99)])
+                       for j in range(99)])
     parts2 = np.array([[full_finder(parts2[i, j]) for i in range(99)]
-              for j in range(99)])
+                       for j in range(99)])
     print('finder')
     tim.tick()
-    interest1 = phasespace_view(parts1,off_diagonal_number)
+    interest1 = phasespace_view(parts1, off_diagonal_number,tim)
     tim.tick()
-    interest2 = phasespace_view(parts2,off_diagonal_number)
+    interest2 = phasespace_view(parts2, off_diagonal_number,tim)
     tim.tick()
     describtion1 = filter_describe(I1)
     describtion2 = filter_describe(I2)
     parts1 = splittimg(describtion1)
     parts2 = splittimg(describtion2)
-    parts1 = [[full_describe(parts1[i, j]) for i in range(99)]
-              for j in range(99)]
-    parts2 = [[full_describe(parts2[i, j]) for i in range(99)]
-              for j in range(99)]
+    describtion1 = np.array([[full_describe(parts1[i, j]) for i in range(99)]
+              for j in range(99)])
+    describtion2 = np.array([[full_describe(parts2[i, j]) for i in range(99)]
+              for j in range(99)])
     tim.tick()
-    print('describtion')
-    describtion1 = np.concatenate(
-        (parts1, np.ones(np.shape(parts1))), axis=2)
-    describtion2 = np.concatenate(
-        (np.ones(np.shape(parts2)), parts2), axis=2)
-
-    weights_old = np.einsum(
-        'ijk,lmk->ijlm', describtion1, describtion2)
-    print(np.shape(weights_old), 99**4)
-    # for i, describtion in np.ndenumerate(weights_old):
-    #    weights_old[i] = compare_net(describtion)
-    weights_old = weights_old * np.einsum('ij,kl->ijkl', interest1, interest2)
+    weights_old = np.einsum('ij,kl->ijkl', interest1, interest2)
     tim.tick()
     print('weigthsold')
     weightslist = []
-    count = 0
     weigths_reducer = np.zeros((sqrtlength, sqrtlength))
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             if i - off_diagonal_number <= j <= i + off_diagonal_number:
-                weigths_reducer[i,j]=1
+                weigths_reducer[i, j] = 1
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             if i - off_diagonal_number <= j <= i + off_diagonal_number:
-                count += 1
+                for k in range(sqrtlength):
+                    for l in range(sqrtlength):
+                        if k - off_diagonal_number <= l <= k + off_diagonal_number:
+                            weights_old[i,k,j,l] *= compare_net(np.concatenate((describtion1[i,k],describtion2[j,l])))
                 weightslist.append(weights_old[i, :, j, :]*weigths_reducer)
     print(np.shape(weightslist[0]))
     weights = np.array(weightslist)
-    print('weightsnew', np.shape(weights), count)
+    print('weightsnew', np.shape(weights))
     tim.tick()
     xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
         (99)), 50*np.ones((99))), axis=-1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis=-1)) - 49.

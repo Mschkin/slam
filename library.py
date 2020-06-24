@@ -2,6 +2,8 @@ from scipy.special import expit
 from scipy.signal import convolve
 from skimage.measure import block_reduce
 import numpy as np
+import cv2
+import matplotlib.pyplot as plt
 
 
 def conv(f, I):
@@ -50,7 +52,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(
                         generator_apply_fully_connected(self, n))
-                if kind == 'filter':
+                elif kind == 'filter':
                     if type(weight_list[n]) == type(None):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
                     else:
@@ -63,15 +65,15 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         weight_list[n])[1] + 1, input_dimensions[2] - np.shape(weight_list[n])[2] + 1)
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_filter(self, n))
-                if kind == 'sigmoid':
+                elif kind == 'sigmoid':
                     assert weight_list[n] == None
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_sigmoid())
-                if kind == 'softmax':
+                elif kind == 'softmax':
                     assert weight_list[n] == None
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_softmax())
-                if kind == 'pooling':
+                elif kind == 'pooling':
                     assert len(dimensions) == 3
                     assert input_dimensions[0] % dimensions[0] == 0
                     assert input_dimensions[1] % dimensions[1] == 0
@@ -81,13 +83,15 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         np.array(input_dimensions) // np.array(dimensions))
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_pooling(dimensions))
-                if kind == 'view':
+                elif kind == 'view':
                     assert weight_list[n] == None
                     assert np.product(
                         input_dimensions) == np.product(dimensions)
                     input_dimensions = dimensions
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_view(dimensions))
+                else:
+                    Exception('Du Depp kannst nicht Tippen:',kind)
             for n, (kind, dimensions) in enumerate(tuple_list[::-1]):
                 if kind == 'fully_connected':
                     self.back_list.append(
@@ -263,11 +267,14 @@ def modelbuilder(tuple_list, input_dimension_numbers):
     return model_class
 
 
-def phasespace_view(straight,off_diagonal_number):
+def phasespace_view(straight, off_diagonal_number, tim):
     # first to indices are the position of the image part, the last one is the
     # direction to propagate
+    print('begin')
+    tim.tick()
     assert np.shape(straight)[2] == 9
-    straight = np.einsum('ijk,ij->ijk', straight, 1 / np.einsum('ijk->ij', straight))
+    straight = np.einsum('ijk,ij->ijk', straight, 1 /
+                         np.einsum('ijk->ij', straight))
     N = np.shape(straight)[0]
     print(N)
     phasespace_progator = np.zeros((N, N, N, N))
@@ -299,11 +306,16 @@ def phasespace_view(straight,off_diagonal_number):
                 if j < N - 1:
                     # down right
                     phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]
-    phasespace_progator=np.reshape(phasespace_progator,(N*N,N*N))
-    start_values=np.zeros((N,N))
+    tim.tick()
+    phasespace_progator = np.reshape(phasespace_progator, (N*N, N*N))
+    start_values = np.zeros((N, N))
     for i in range(N):
         for j in range(N):
             if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
-                start_values[i,j]=1
-    return np.linalg.matrix_power(phasespace_progator, off_diagonal_number) @ np.reshape(start_values, (N * N))
-
+                start_values[i, j] = 1
+    tim.tick()
+    x =np.reshape(start_values, (N * N))
+    for i in range(off_diagonal_number):
+        x=phasespace_progator@x
+    tim.tick()
+    return np.reshape(x, (N, N))
