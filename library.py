@@ -8,22 +8,23 @@ def conv(f, I):
     # I: farbe unten rechts
     # f: filterzahl unten rechts farbe
     I = np.swapaxes(np.swapaxes(I, 0, 2), 0, 1)
-    c = np.array([convolve(f[i, ::-1, ::-1, ::-1], I, mode='valid')[:, :, 0] for i in range(len(f))])
-    #si=np.shape(I)
-    #sf=np.shape(f)
+    c = np.array([convolve(f[i, ::-1, ::-1, ::-1], I, mode='valid')
+                  [:, :, 0] for i in range(len(f))])
+    # si=np.shape(I)
+    # sf=np.shape(f)
     #c = np.array([np.random.rand(si[1]-sf[1]+1,si[2]-sf[2]+1) for i in range(len(f))])
-    #print(si,sf)
+    # print(si,sf)
     # c: filterzahl unten rechts
     return c
 
 
 def modelbuilder(tuple_list, input_dimension_numbers):
     # list of tuples which contains the names and the dimensions if necessary
-    #[('name',dimensions)]
+    # [('name',dimensions)]
     # implementet: filter, fully_connected,sigmoid, softmax,pooling,view
     # example:
     # modelclass = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    #'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (36,)), ('fully_connected', (3, 36)), ('sigmoid', None)], (3, 30, 30))
+    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (36,)), ('fully_connected', (3, 36)), ('sigmoid', None)], (3, 30, 30))
     #model = modelclass([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
     class model_class:
         def __init__(self, weight_list):
@@ -112,12 +113,13 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.derivative_functions.append(None)
 
         def __call__(self, inp):
-            self.propagation_values=[inp]
+            self.propagation_values = [inp]
             for func in self.call_list:
-                self.propagation_values.append(func(self.propagation_values[-1]))
+                self.propagation_values.append(
+                    func(self.propagation_values[-1]))
             return self.propagation_values[-1]
 
-        def calculate_derivatives(self, inp,first_old_back):
+        def calculate_derivatives(self, inp, first_old_back):
             self.derivative_values = []
             back_progation_values = [first_old_back]
             # print(back_progation_values[-1])
@@ -131,14 +133,14 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.derivative_values.append(None)
                 back_progation_values.append(
                     func(back_progation_values[-1], self.propagation_values[-n - 2]))
-            self.derivative_values=self.derivative_values[::-1]
+            self.derivative_values = self.derivative_values[::-1]
             return back_progation_values
-        
+
         def update_weights(self):
             for i in range(len(self.weight_list)):
                 if not self.weight_list[i] == None:
-                    self.weight_list[i] -= self.learing_rate * self.derivative_values[i]
-
+                    self.weight_list[i] -= self.learing_rate * \
+                        self.derivative_values[i]
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):
@@ -266,6 +268,7 @@ def phasespace_view(straight):
     # direction to propagate
     assert np.shape(straight)[2] == 9
     N = np.shape(straight)[0]
+    print(N)
     phasespace_progator = np.zeros((N, N, N, N))
     for i in range(N):
         for j in range(N):
@@ -295,4 +298,5 @@ def phasespace_view(straight):
                 if j < N - 1:
                     # down right
                     phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]
-    return np.linalg.matrix_power(phasespace_progator, (N * N - 1) / 2)[:, (N * N - 1) / 2]
+    return np.linalg.matrix_power(phasespace_progator, (N  - 1) // 2)[:, :, (N - 1) // 2, (N-1)//2]
+

@@ -2,7 +2,7 @@ import numpy as np
 import quaternion
 from scipy.special import expit
 from copy import deepcopy
-from library import modelbuilder
+from library import modelbuilder,phasespace_view
 import cProfile
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
@@ -70,13 +70,15 @@ def pipeline(I1, I2):
     tim.tick()
     parts1 = splittimg(flow_weights1)
     parts2 = splittimg(flow_weights1)
-    parts1 = [[full_finder(parts1[i, j]) for i in range(99)]
-              for j in range(99)]
-    parts2 = [[full_finder(parts2[i, j]) for i in range(99)]
-              for j in range(99)]
+    parts1 = np.array([[full_finder(parts1[i, j]) for i in range(99)]
+              for j in range(99)])
+    parts2 = np.array([[full_finder(parts2[i, j]) for i in range(99)]
+              for j in range(99)])
     print('finder')
-    interest1 = test_phasespace_view(parts1)
-    interest2 = test_phasespace_view(parts2)
+    tim.tick()
+    interest1 = phasespace_view(parts1)
+    tim.tick()
+    interest2 = phasespace_view(parts2)
     tim.tick()
     describtion1 = filter_describe(I1)
     describtion2 = filter_describe(I2)
@@ -152,4 +154,5 @@ def numericdiff(f, inpt, index):
 I1 = np.random.randint(0, 255, (226, 226, 3))
 I2 = np.random.randint(0, 255, (226, 226, 3))
 
-cProfile.run('pipeline(I1, I2)')
+#cProfile.run('pipeline(I1, I2)')
+pipeline(I1, I2)
