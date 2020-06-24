@@ -76,9 +76,9 @@ def pipeline(I1, I2):
               for j in range(99)])
     print('finder')
     tim.tick()
-    interest1 = phasespace_view(parts1)
+    interest1 = phasespace_view(parts1,off_diagonal_number)
     tim.tick()
-    interest2 = phasespace_view(parts2)
+    interest2 = phasespace_view(parts2,off_diagonal_number)
     tim.tick()
     describtion1 = filter_describe(I1)
     describtion2 = filter_describe(I2)
@@ -105,11 +105,16 @@ def pipeline(I1, I2):
     print('weigthsold')
     weightslist = []
     count = 0
+    weigths_reducer = np.zeros((sqrtlength, sqrtlength))
+    for i in range(sqrtlength):
+        for j in range(sqrtlength):
+            if i - off_diagonal_number <= j <= i + off_diagonal_number:
+                weigths_reducer[i,j]=1
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             if i - off_diagonal_number <= j <= i + off_diagonal_number:
                 count += 1
-                weightslist.append(weights_old[i, :, j, :])
+                weightslist.append(weights_old[i, :, j, :]*weigths_reducer)
     print(np.shape(weightslist[0]))
     weights = np.array(weightslist)
     print('weightsnew', np.shape(weights), count)
@@ -118,8 +123,8 @@ def pipeline(I1, I2):
         (99)), 50*np.ones((99))), axis=-1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis=-1)) - 49.
     yp = xp
     t_true = np.random.rand(3)
-    q_true = .1*np.random.rand(3)
-    q_true = np.array([(1-q_true@q_true)**.5]+list(q_true))
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true@q_true)**.5] + list(q_true))
     hdx_p, hdy_p, hnd_raw_p, datalist = get_hessian_parts_wrapper(
         xp, yp, const_length, array_length)
     tim.tick()

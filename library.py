@@ -263,10 +263,11 @@ def modelbuilder(tuple_list, input_dimension_numbers):
     return model_class
 
 
-def phasespace_view(straight):
+def phasespace_view(straight,off_diagonal_number):
     # first to indices are the position of the image part, the last one is the
     # direction to propagate
     assert np.shape(straight)[2] == 9
+    straight = np.einsum('ijk,ij->ijk', straight, 1 / np.einsum('ijk->ij', straight))
     N = np.shape(straight)[0]
     print(N)
     phasespace_progator = np.zeros((N, N, N, N))
@@ -298,5 +299,11 @@ def phasespace_view(straight):
                 if j < N - 1:
                     # down right
                     phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]
-    return np.linalg.matrix_power(phasespace_progator, (N  - 1) // 2)[:, :, (N - 1) // 2, (N-1)//2]
+    phasespace_progator=np.reshape(phasespace_progator,(N*N,N*N))
+    start_values=np.zeros((N,N))
+    for i in range(N):
+        for j in range(N):
+            if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
+                start_values[i,j]=1
+    return np.linalg.matrix_power(phasespace_progator, off_diagonal_number) @ np.reshape(start_values, (N * N))
 
