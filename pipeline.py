@@ -8,6 +8,7 @@ from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from compile2 import dVdg_wrapper, get_hessian_parts_wrapper
 from compile2 import timer
+from geometry import numericdiff
 
 tim = timer()
 
@@ -128,27 +129,17 @@ def pipeline(I1, I2):
     tim.tick()
 
 
-def numericdiff(f, inpt, index):
-    # get it running for quaternions
-    r = f(*inpt)
-    h = 1 / 10000000
-    der = []
-    for inputnumber, inp in enumerate(inpt):
-        if inputnumber != index:
-            continue
-        ten = np.zeros(tuple(list(np.shape(inp)) +
-                             list(np.shape(r))), dtype=np.double)
-        for s, _ in np.ndenumerate(inp):
-            n = deepcopy(inp) * 1.0
-            n[s] += h
-            ten[s] = (
-                f(*(inpt[:inputnumber] + [n] + inpt[inputnumber + 1:])) - r) / h
-        der.append(ten)
-    return der
-
 
 I1 = np.random.randint(0, 255, (226, 226, 3))
 I2 = np.random.randint(0, 255, (226, 226, 3))
 
 #cProfile.run('pipeline(I1, I2)')
-pipeline(I1, I2)
+#pipeline(I1, I2)
+straight=np.random.rand(8,8,9)
+a,b=phasespace_view(straight,3,tim)
+def phasespace_view_wrapper(straight):
+    a,_=phasespace_view(straight,3,tim)
+    return a
+x=numericdiff(phasespace_view_wrapper,[straight],0)
+
+print(np.linalg.norm(b-x[0]))

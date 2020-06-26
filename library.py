@@ -91,7 +91,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_view(dimensions))
                 else:
-                    Exception('Du Depp kannst nicht Tippen:',kind)
+                    Exception('Du Depp kannst nicht Tippen:', kind)
             for n, (kind, dimensions) in enumerate(tuple_list[::-1]):
                 if kind == 'fully_connected':
                     self.back_list.append(
@@ -272,10 +272,11 @@ def phasespace_view(straight, off_diagonal_number, tim):
     # direction to propagate
     print('begin')
     tim.tick()
-    assert np.shape(straight)[2] == 9
-    straight = np.einsum('ijk,ij->ijk', straight, 1 /
-                         np.einsum('ijk->ij', straight))
     N = np.shape(straight)[0]
+    assert np.shape(straight)[2] == 9
+    norm = 1 /np.einsum('ijk->ij', straight)
+    dnormed_straight_dstraight = np.einsum('ij,kl->ijkl',norm,np.eye(9))-np.einsum('ijk,ij,l->ijkl',straight,norm**2,np.ones(9))
+    straight = np.einsum('ijk,ij->ijk', straight, norm)
     print(N)
     phasespace_progator = np.zeros((N, N, N, N))
     for i in range(N):
@@ -314,8 +315,14 @@ def phasespace_view(straight, off_diagonal_number, tim):
             if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
                 start_values[i, j] = 1
     tim.tick()
-    x =np.reshape(start_values, (N * N))
-    for i in range(off_diagonal_number):
-        x=phasespace_progator@x
+    pure_phase = np.reshape(start_values, (N * N))
+    dintered_dstraight = np.zeros((N, N, 9, N*N))
+    for _ in range(off_diagonal_number):
+        for ind, _ in np.ndenumerate(straight):
+            z = np.zeros((N+2,N+2))
+            z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
+            dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
+        pure_phase = phasespace_progator@pure_phase
     tim.tick()
-    return np.reshape(x, (N, N))
+    dintered_dstraight=np.reshape(dintered_dstraight,(N,N,9,N,N))
+    return np.reshape(pure_phase, (N, N)),np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
