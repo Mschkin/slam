@@ -173,7 +173,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                              double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
-    printf("%f",weights_not_normed[0]);
+    printf("%f", weights_not_normed[0]);
     printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
 
 #define hdx_R(i, j) hdx_R[sqrtlength * (i) + (j)]
@@ -516,6 +516,75 @@ double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_n
 #undef yp
 #undef weights_not_normed
 #undef dVdg
+}
+
+void phase_space_view(double *straight)
+{
+    /*
+    N = np.shape(straight)[0]
+    assert np.shape(straight)[2] == 9
+    norm = 1 /np.einsum('ijk->ij', straight)
+    dnormed_straight_dstraight = np.einsum('ij,kl->ijkl',norm,np.eye(9))-np.einsum('ijk,ij,l->ijkl',straight,norm**2,np.ones(9))
+    straight = np.einsum('ijk,ij->ijk', straight, norm)
+    print(N)
+    phasespace_progator = np.zeros((N, N, N, N))*/
+    double *norm = malloc(const_length * 9 * sizeof(double));
+    double *dnormed_straight_dstraight = malloc(const_length * 81 * sizeof(double));
+    double* phasespace_propagator=calloc(const_length*const_length,sizeof(double));
+#define norm(i, j) norm[const_length * (i) + (j)]
+#define straight(i, j, k) straight[const_length * 9 * (i) + (j)*9 + (k)]
+#define dnormed_straight_dstraight(i, j, k, l) dnormed_straight_dstraight[const_length * 81 * (i) + (j)*81 + (k)*9 + (l)]
+#define phasespace_propagator(i,j,k,l) phasespace_propagator[(i)*const_length*sqrtlength+(j)*const_length+(k)*sqrtlength+(l)]
+/*start_values = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
+                start_values[i, j] = 1
+    tim.tick()
+    pure_phase = np.reshape(start_values, (N * N))*/
+    double *pure_phase=calloc(const_length,sizeof(double));
+#define pure_phase(i,j) pure_phase[(i)*sqrtlength+(j)]
+    for (int i = 0; i < sqrtlength; i++)
+    {
+        for (int j = 0; j < sqrtlength; j++)
+        {   
+            pure_phase=(off_diagonal_number<=i)*(i<=sqrtlength-off_diagonal_number)*(off_diagonal_number<=j)*(j<=sqrtlength-off_diagonal_number);
+            norm(i, j) = 0;
+            for (int k = 0; k < 9; k++)
+            {
+                norm(i, j) += straight(i, j, k);
+            }
+            norm(i, j) = 1 / norm(i, j);
+            for (int k = 0; k < 9; k++)
+            {
+                for (int l = 0; l < 9; l++)
+                {
+                    dnormed_straight_dstraight(i, j, k, l)=-straight(i,j,k)*norm(i,j)*norm(i,j);
+                }
+                dnormed_straight_dstraight(i, j, k, k)+=norm(i,j);
+                straight(i,j,k)*=norm(i,j);
+            }
+            /* 1<i<N-1; 1<j<N-1
+            phasespace_progator[i, j, i, j] = straight[i, j, 4]
+            # right
+            phasespace_progator[i, j + 1, i, j] = straight[i, j, 5]
+            # top right
+            phasespace_progator[i - 1, j + 1, i, j] = straight[i, j, 2]
+            # top
+            phasespace_progator[i - 1, j, i, j] = straight[i, j, 1]
+            # top left
+            phasespace_progator[i - 1, j - 1, i, j] = straight[i, j, 0]
+            # left
+            phasespace_progator[i, j - 1, i, j] = straight[i, j, 3]
+            # left down
+            phasespace_progator[i + 1, j - 1, i, j] = straight[i, j, 6]
+            # down
+            phasespace_progator[i + 1, j, i, j] = straight[i, j, 7]
+            # down right
+            phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]*/
+
+        }
+    }
 }
 
 int main(void)
