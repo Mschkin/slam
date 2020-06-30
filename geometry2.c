@@ -530,25 +530,25 @@ void phase_space_view(double *straight)
     phasespace_progator = np.zeros((N, N, N, N))*/
     double *norm = malloc(const_length * 9 * sizeof(double));
     double *dnormed_straight_dstraight = malloc(const_length * 81 * sizeof(double));
-    double* phasespace_propagator=calloc(const_length*const_length,sizeof(double));
+    double *phasespace_propagator = calloc(const_length * const_length, sizeof(double));
 #define norm(i, j) norm[const_length * (i) + (j)]
 #define straight(i, j, k) straight[const_length * 9 * (i) + (j)*9 + (k)]
 #define dnormed_straight_dstraight(i, j, k, l) dnormed_straight_dstraight[const_length * 81 * (i) + (j)*81 + (k)*9 + (l)]
-#define phasespace_propagator(i,j,k,l) phasespace_propagator[(i)*const_length*sqrtlength+(j)*const_length+(k)*sqrtlength+(l)]
-/*start_values = np.zeros((N, N))
+#define phasespace_propagator(i, j, k, l) phasespace_propagator[(i)*const_length * sqrtlength + (j)*const_length + (k)*sqrtlength + (l)]
+    /*start_values = np.zeros((N, N))
     for i in range(N):
         for j in range(N):
             if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
                 start_values[i, j] = 1
     tim.tick()
     pure_phase = np.reshape(start_values, (N * N))*/
-    double *pure_phase=calloc(const_length,sizeof(double));
-#define pure_phase(i,j) pure_phase[(i)*sqrtlength+(j)]
+    double *pure_phase = calloc(const_length, sizeof(double));
+#define pure_phase(i, j) pure_phase[(i)*sqrtlength + (j)]
     for (int i = 0; i < sqrtlength; i++)
     {
         for (int j = 0; j < sqrtlength; j++)
-        {   
-            pure_phase=(off_diagonal_number<=i)*(i<=sqrtlength-off_diagonal_number)*(off_diagonal_number<=j)*(j<=sqrtlength-off_diagonal_number);
+        {
+            pure_phase(i, j) = (off_diagonal_number <= i) * (i <= sqrtlength - off_diagonal_number) * (off_diagonal_number <= j) * (j <= sqrtlength - off_diagonal_number);
             norm(i, j) = 0;
             for (int k = 0; k < 9; k++)
             {
@@ -559,10 +559,10 @@ void phase_space_view(double *straight)
             {
                 for (int l = 0; l < 9; l++)
                 {
-                    dnormed_straight_dstraight(i, j, k, l)=-straight(i,j,k)*norm(i,j)*norm(i,j);
+                    dnormed_straight_dstraight(i, j, k, l) = -straight(i, j, k) * norm(i, j) * norm(i, j);
                 }
-                dnormed_straight_dstraight(i, j, k, k)+=norm(i,j);
-                straight(i,j,k)*=norm(i,j);
+                dnormed_straight_dstraight(i, j, k, k) += norm(i, j);
+                straight(i, j, k) *= norm(i, j);
             }
             /* 1<i<N-1; 1<j<N-1
             phasespace_progator[i, j, i, j] = straight[i, j, 4]
@@ -582,8 +582,56 @@ void phase_space_view(double *straight)
             phasespace_progator[i + 1, j, i, j] = straight[i, j, 7]
             # down right
             phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]*/
-
         }
+    }
+    //dintered_dstraight = np.zeros((N, N, 9, N*N))
+    int block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
+    double *dinterest_dstraight = calloc(const_length * 9 * block_size, sizeof(double));
+    double *dummy_pure_phase = malloc(const_length * sizeof(double));
+    double *dummy_point;
+    double dummy_block[block_size];
+#define dummy_pure_phase(i, j) dummy_pure_phase[(i)*sqrtlength + (j)]
+#define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number + 1) + (m)]
+#define dummy_block(i, j) dummy_block[(i) * (2 * off_diagonal_number + 1) + (j)]
+    /*for _ in range(off_diagonal_number):
+        for ind, _ in np.ndenumerate(straight):
+            z = np.zeros((N+2,N+2))
+            z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
+            dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
+        pure_phase = phasespace_progator@pure_phase*/
+    for (int pro_range = 0; pro_range < off_diagonal_number; pro_range++)
+    {
+        for (int straight_x = off_diagonal_number - pro_range; straight_x < sqrtlength - off_diagonal_number + pro_range; straight_x++)
+        {
+            for (int straight_y = off_diagonal_number - pro_range; straight_y < sqrtlength - off_diagonal_number + pro_range; straight_y++)
+            {
+                dummy_pure_phase(straight_y, straight_x) = 0;
+                for (int straight_d = 0; straight_d < 9; straight_d++)
+                {
+                    dummy_pure_phase(straight_y, straight_x) += straight(straight_y + straight_d / 3 - 1, straight_x + straight_d % 3 - 1, straight_d) * pure_phase(straight_y + straight_d / 3 - 1, straight_x + straight_d % 3 - 1);
+                    for (int block_y = straight_y - pro_range + 1; block_y < straight_y + pro_range - 1; block_y++)
+                    {
+                        for (int block_x = straight_x - pro_range + 1; block_x < straight_x + pro_range - 1; block_x++)
+                        {
+                            dummy_block(block_y, block_x)=0;
+                            for (int direction = 0; direction < 9; direction++)
+                            {
+                                dummy_block(block_y, block_x) += straight(block_y + direction / 3 - 1, block_x + direction % 3 - 1, direction) * dinterest_dstraight(straight_x, straight_y, straight_d, block_y + direction / 3 - 1, block_x + direction % 3 - 1);
+
+                            }
+                        }
+                    }
+                    dummy_block(straight_y + straight_d / 3 - 1, straight_x + straight_d % 3 - 1)+=pure_phase(straight_y,straight_x);
+                    for(int block_copy=0;block_copy<block_size;block_copy++){
+                        dinterest_dstraight(straight_x, straight_y, straight_d,0,block_copy)=dummy_block[block_copy];
+                    }
+                }
+            }
+        }
+        dummy_point = pure_phase;
+        pure_phase = dummy_pure_phase;
+        dummy_pure_phase = dummy_point;
+
     }
 }
 
