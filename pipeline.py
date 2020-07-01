@@ -4,11 +4,13 @@ from scipy.special import expit
 from copy import deepcopy
 from library import modelbuilder, phasespace_view
 import cProfile
-from _geometry2.lib import get_hessian_parts_R_c
-from _geometry2.lib import dVdg_function_c
+from _geometry2.lib import get_hessian_parts_R_c,dVdg_function_c,phase_space_view_c
 from compile2 import dVdg_wrapper, get_hessian_parts_wrapper
 from compile2 import timer
 from geometry import numericdiff
+from cffi import FFI
+ffi=FFI()
+
 
 tim = timer()
 
@@ -135,11 +137,22 @@ I2 = np.random.randint(0, 255, (226, 226, 3))
 
 #cProfile.run('pipeline(I1, I2)')
 #pipeline(I1, I2)
-straight=np.random.rand(8,8,9)
-a,b=phasespace_view(straight,3,tim)
-def phasespace_view_wrapper(straight):
-    a,_=phasespace_view(straight,3,tim)
-    return a
-x=numericdiff(phasespace_view_wrapper,[straight],0)
+sqrtlength = 20
+const_length = sqrtlength ** 2
+off_diagonal_number = 5
+straight=np.random.rand(sqrtlength,sqrtlength,9)
+c_pure_phase=np.zeros((sqrtlength,sqrtlength))
+c_pure_phase_p=ffi.cast("double*", c_pure_phase.__array_interface__['data'][0])
+c_straight=deepcopy(straight)
+c_straight_p=ffi.cast("double*", c_straight.__array_interface__['data'][0])
+c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
+c_di_ds_p=ffi.cast("double*", c_di_ds.__array_interface__['data'][0])
+a,b=phasespace_view(straight,off_diagonal_number,tim)
+phase_space_view_c(c_straight_p,c_di_ds_p,c_pure_phase_p)
+print('auch?')
+#def phasespace_view_wrapper(straight):
+#    a,_=phasespace_view(straight,off_diagonal_number,tim)
+#    return a
+#x=numericdiff(phasespace_view_wrapper,[straight],0)
 
-print(np.linalg.norm(b-x[0]))
+print(np.linalg.norm(a-c_pure_phase))

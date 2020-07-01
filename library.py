@@ -312,10 +312,11 @@ def phasespace_view(straight, off_diagonal_number, tim):
     start_values = np.zeros((N, N))
     for i in range(N):
         for j in range(N):
-            if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
+            if off_diagonal_number <= i < N - off_diagonal_number and off_diagonal_number <= j < N - off_diagonal_number:
                 start_values[i, j] = 1
     tim.tick()
     pure_phase = np.reshape(start_values, (N * N))
+    print('python abs:',np.sum(pure_phase))
     dintered_dstraight = np.zeros((N, N, 9, N*N))
     for _ in range(off_diagonal_number):
         for ind, _ in np.ndenumerate(straight):
@@ -323,6 +324,9 @@ def phasespace_view(straight, off_diagonal_number, tim):
             z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
             dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
         pure_phase = phasespace_progator@pure_phase
+        #plt.imshow(np.reshape(pure_phase,(N,N))>0,cmap='gray')
+        #plt.show()
+        print(np.sum(pure_phase))
     tim.tick()
     dintered_dstraight=np.reshape(dintered_dstraight,(N,N,9,N,N))
     return np.reshape(pure_phase, (N, N)),np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)

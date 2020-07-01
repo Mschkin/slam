@@ -14,7 +14,8 @@ c_header = """void sparse_invert(double *mat, double *v1, double *v2);
                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
             void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
             double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);"""
+                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
+                     void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase);"""
 ffi.cdef(c_header)
 f = open('geometry2.h', 'w')
 f.write(c_header)
