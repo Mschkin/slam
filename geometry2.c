@@ -7,7 +7,7 @@
 
 #define sqrtlength 20
 #define const_length sqrtlength *sqrtlength
-#define off_diagonal_number 5
+#define off_diagonal_number 7
 #define array_length const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 #define big_array_length const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
 
@@ -584,9 +584,9 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
     double abs = 0;
     for (int i = 0; i < const_length; i++)
     {
-        abs += pure_phase[i];
+        abs += norm[i];
     }
-    printf("total value of pure_phase:%f\n", abs);
+    printf("total value of norm:%f\n", abs);
     //dintered_dstraight = np.zeros((N, N, 9, N*N))
     int block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
     double *dinterest_dstraight = calloc(const_length * 9 * block_size, sizeof(double));
@@ -602,6 +602,7 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
             z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
             dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
         pure_phase = phasespace_progator@pure_phase*/
+        
     for (int pro_range = 0; pro_range < off_diagonal_number; pro_range++)
     {
         for (int set_zero = 0; set_zero < const_length; set_zero++)
@@ -622,7 +623,7 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
                             dummy_block(block_y, block_x) = 0;
                             for (int direction = 0; direction < 9; direction++)
                             {
-                                dummy_block(block_y + direction / 3 - 1, block_x + direction % 3 - 1) += straight(straight_y + straight_d / 3 - 1 - off_diagonal_number - 1 + block_y, straight_x + straight_d % 3 - 1 - off_diagonal_number - 1 + block_x, direction) * dinterest_dstraight(straight_y, straight_x, straight_d, block_y, block_x);
+                                //dummy_block(block_y + direction / 3 - 1, block_x + direction % 3 - 1) += straight(straight_y + straight_d / 3 - 1 - off_diagonal_number - 1 + block_y, straight_x + straight_d % 3 - 1 - off_diagonal_number - 1 + block_x, direction) * dinterest_dstraight(straight_y, straight_x, straight_d, block_y, block_x);
                             }
                         }
                     }
@@ -638,9 +639,9 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
         pure_phase = dummy_pure_phase;
         dummy_pure_phase = dummy_point;
         abs = 0;
-        for (int i = 0; i < const_length; i++)
+        for (int i = 0; i < const_length*block_size*9; i++)
         {
-            abs += pure_phase[i];
+            abs += dinterest_dstraight[i];
         }
         printf("total value of pure_phase:%f\n", abs);
     }
@@ -653,6 +654,9 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
         {
             dummy_pure_phase[i] = pure_phase[i];
         }
+        dummy_point = pure_phase;
+        pure_phase = dummy_pure_phase;
+        dummy_pure_phase = dummy_point;
     }
 
     //np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
