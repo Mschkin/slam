@@ -146,7 +146,7 @@ c_pure_phase=np.zeros((sqrtlength,sqrtlength))
 c_pure_phase_p=ffi.cast("double*", c_pure_phase.__array_interface__['data'][0])
 c_straight=deepcopy(straight)
 c_straight_p=ffi.cast("double*", c_straight.__array_interface__['data'][0])
-c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
+c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number-1,2*off_diagonal_number-1))
 c_di_ds_p=ffi.cast("double*", c_di_ds.__array_interface__['data'][0])
 
 a,b=phasespace_view(straight,off_diagonal_number,tim)
@@ -166,10 +166,12 @@ for i in range(sqrtlength):
                     big_c[i,j,k,l,m]=c_di_ds[i,j,k,l-max(i-off_diagonal_number,0),m-max(j-off_diagonal_number,0)]
 k=(b[7,7,4]!=0)*1.
 k[7,7]*=.5
-plt.imshow(k,cmap='gray')
-plt.show()
+#plt.imshow(k,cmap='gray')
+#plt.show()
 k=(big_c[7,7,4]!=0)*1.
 k[7,7]*=.5
-plt.imshow(k,cmap='gray')
-plt.show()
+
+#plt.imshow(k,cmap='gray')
+#plt.show()
+print(np.linalg.norm(a-c_pure_phase))
 print(np.linalg.norm(b-big_c))

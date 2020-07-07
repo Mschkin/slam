@@ -326,7 +326,7 @@ def phasespace_view(straight, off_diagonal_number, tim):
         pure_phase = phasespace_progator@pure_phase
         #plt.imshow(np.reshape(pure_phase,(N,N))>0,cmap='gray')
         #plt.show()
-        print(np.sum(pure_phase))
+        print(np.sum(dintered_dstraight))
     tim.tick()
     dintered_dstraight=np.reshape(dintered_dstraight,(N,N,9,N,N))
     return np.reshape(pure_phase, (N, N)),np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
