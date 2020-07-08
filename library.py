@@ -274,8 +274,9 @@ def phasespace_view(straight, off_diagonal_number, tim):
     tim.tick()
     N = np.shape(straight)[0]
     assert np.shape(straight)[2] == 9
-    norm = 1 /np.einsum('ijk->ij', straight)
-    dnormed_straight_dstraight = np.einsum('ij,kl->ijkl',norm,np.eye(9))-np.einsum('ijk,ij,l->ijkl',straight,norm**2,np.ones(9))
+    norm = 1 / np.einsum('ijk->ij', straight)
+    dnormed_straight_dstraight = np.einsum(
+        'ij,kl->ijkl', norm, np.eye(9))-np.einsum('ijk,ij,l->ijkl', straight, norm**2, np.ones(9))
     straight = np.einsum('ijk,ij->ijk', straight, norm)
     print(N)
     phasespace_progator = np.zeros((N, N, N, N))
@@ -316,17 +317,22 @@ def phasespace_view(straight, off_diagonal_number, tim):
                 start_values[i, j] = 1
     tim.tick()
     pure_phase = np.reshape(start_values, (N * N))
-    print('python abs:',np.sum(pure_phase))
+    print('python abs:', np.sum(pure_phase))
     dintered_dstraight = np.zeros((N, N, 9, N*N))
-    for _ in range(off_diagonal_number):
+    for pro in range(off_diagonal_number):
         for ind, _ in np.ndenumerate(straight):
-            z = np.zeros((N+2,N+2))
-            z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
-            dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
+            z = np.zeros((N+2, N+2))
+            z[(ind[0]+ind[2]//3-1) + 1, ind[1]+ind[2] %
+              3-1+1] = pure_phase[ind[0]*N+ind[1]]
+            dintered_dstraight[ind] = np.reshape(
+                z[1:-1, 1:-1], N*N)+phasespace_progator@dintered_dstraight[ind]
+            if pro == 2 and ind == (6, 10, 4):
+                print(np.reshape(dintered_dstraight[ind], (N, N))[3:10, 7:14])
+                print(np.reshape(pure_phase,(N,N))[3:10, 7:14])
         pure_phase = phasespace_progator@pure_phase
-        #plt.imshow(np.reshape(pure_phase,(N,N))>0,cmap='gray')
-        #plt.show()
+        # plt.imshow(np.reshape(pure_phase,(N,N))>0,cmap='gray')
+        # plt.show()
         print(np.sum(dintered_dstraight))
     tim.tick()
-    dintered_dstraight=np.reshape(dintered_dstraight,(N,N,9,N,N))
-    return np.reshape(pure_phase, (N, N)),np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
+    dintered_dstraight = np.reshape(dintered_dstraight, (N, N, 9, N, N))
+    return np.reshape(pure_phase, (N, N)), np.einsum('ijkl,ijkmn->ijlmn', dnormed_straight_dstraight, dintered_dstraight)

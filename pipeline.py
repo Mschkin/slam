@@ -161,9 +161,9 @@ big_c=np.zeros_like(b)
 for i in range(sqrtlength):
     for j in range(sqrtlength):
         for k in range(9):
-            for l in range(max(0,i-off_diagonal_number),min(sqrtlength,i+off_diagonal_number)):
-                for m in range(max(0,j-off_diagonal_number),min(sqrtlength,j+off_diagonal_number)):
-                    big_c[i,j,k,l,m]=c_di_ds[i,j,k,l-max(i-off_diagonal_number,0),m-max(j-off_diagonal_number,0)]
+            for l in range(max(1,i-off_diagonal_number),min(sqrtlength-1,i+off_diagonal_number-1)):
+                for m in range(max(1,j-off_diagonal_number),min(sqrtlength-1,j+off_diagonal_number-1)):
+                    big_c[i,j,k,l+k//3-1,m+k%3-1]=c_di_ds[i,j,k,l-max(i-off_diagonal_number,0),m-max(j-off_diagonal_number,0)]
 k=(b[7,7,4]!=0)*1.
 k[7,7]*=.5
 #plt.imshow(k,cmap='gray')
@@ -173,5 +173,5 @@ k[7,7]*=.5
 
 #plt.imshow(k,cmap='gray')
 #plt.show()
-print(np.linalg.norm(a-c_pure_phase))
-print(np.linalg.norm(b-big_c))
+print(np.allclose(a,c_pure_phase))
+print(np.allclose(b,big_c))
