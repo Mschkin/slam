@@ -2,9 +2,9 @@ import numpy as np
 import quaternion
 from scipy.special import expit
 from copy import deepcopy
-from library import modelbuilder, phasespace_view
+from library import modelbuilder, phasespace_view,back_phase_space
 import cProfile
-from _geometry2.lib import get_hessian_parts_R_c,dVdg_function_c,phase_space_view_c
+from _geometry2.lib import get_hessian_parts_R_c,dVdg_function_c,phase_space_view_c,c_back_phase_space
 from compile2 import dVdg_wrapper, get_hessian_parts_wrapper
 from compile2 import timer
 from geometry import numericdiff
@@ -152,19 +152,18 @@ tim.tick()
 phython_pure,python_din_ds=phasespace_view(straight,off_diagonal_number)
 phase_space_view_c(c_straight_p,c_di_ds_p,c_pure_phase_p)
 tim.tick()
+dV_dinterest=np.random.rand(sqrtlength,sqrtlength)
+c_dV_din=deepcopy(dV_dinterest)
+c_dV_din_p=ffi.cast("double*", c_dV_din.__array_interface__['data'][0])
+py_dV_dstraight=back_phase_space(dV_dinterest,python_din_ds)
+c_dV_dstaight=np.zeros((sqrtlength,sqrtlength,9))
+c_dV_dstaight_p=ffi.cast("double*", c_dV_dstaight.__array_interface__['data'][0])
+c_back_phase_space(c_di_ds_p, c_dV_din_p, c_dV_dstaight_p)
 #def phasespace_view_wrapper(straight):
 #    a,_=phasespace_view(straight,off_diagonal_number,tim)
 #    return a
 #x=numericdiff(phasespace_view_wrapper,[straight],0)
-"""
-big_c=np.zeros_like(b)
-for i in range(sqrtlength):
-    for j in range(sqrtlength):
-        for k in range(9):
-            for l in range(max(1,i-off_diagonal_number),min(sqrtlength-1,i+off_diagonal_number-1)):
-                for m in range(max(1,j-off_diagonal_number),min(sqrtlength-1,j+off_diagonal_number-1)):
-                    big_c[i,j,k,l+k//3-1,m+k%3-1]=c_di_ds[i,j,k,l-max(i-off_diagonal_number,0),m-max(j-off_diagonal_number,0)]
-                    """
+
 def cutter(i,j,k,py_big):
     small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
     if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
@@ -185,4 +184,6 @@ for i in range(sqrtlength):
 
 print(np.allclose(phython_pure,c_pure_phase))
 print(np.allclose(small_py,c_di_ds))
+print(py_dV_dstraight[:5,:5,0])
+print(c_dV_dstaight[:5,:5,0])
 print(np.random.rand())

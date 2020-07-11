@@ -323,3 +323,6 @@ def phasespace_view(straight, off_diagonal_number):
         pure_phase = phasespace_progator@pure_phase
     dintered_dstraight = np.reshape(dintered_dstraight, (N, N, 9, N, N))
     return np.reshape(pure_phase, (N, N)), np.einsum('ijkl,ijkmn->ijlmn', dnormed_straight_dstraight, dintered_dstraight)
+
+def back_phase_space(dV_dintrest,dintered_dstraight):
+    return np.einsum('ijkmn,mn->ijk',dintered_dstraight,dV_dintrest)
