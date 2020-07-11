@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from cffi import FFI
 ffi=FFI()
 
-
+np.random.seed(6865)
 tim = timer()
 
 modelclass_fd = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
@@ -140,23 +140,23 @@ I2 = np.random.randint(0, 255, (226, 226, 3))
 #pipeline(I1, I2)
 sqrtlength = 20
 const_length = sqrtlength ** 2
-off_diagonal_number = 7
+off_diagonal_number = 5
 straight=np.random.rand(sqrtlength,sqrtlength,9)
 c_pure_phase=np.zeros((sqrtlength,sqrtlength))
 c_pure_phase_p=ffi.cast("double*", c_pure_phase.__array_interface__['data'][0])
 c_straight=deepcopy(straight)
 c_straight_p=ffi.cast("double*", c_straight.__array_interface__['data'][0])
-c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number-1,2*off_diagonal_number-1))
+c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
 c_di_ds_p=ffi.cast("double*", c_di_ds.__array_interface__['data'][0])
-
-a,b=phasespace_view(straight,off_diagonal_number,tim)
+tim.tick()
+phython_pure,python_din_ds=phasespace_view(straight,off_diagonal_number)
 phase_space_view_c(c_straight_p,c_di_ds_p,c_pure_phase_p)
-print('null?',np.sum(c_di_ds))
-print('auch?')
+tim.tick()
 #def phasespace_view_wrapper(straight):
 #    a,_=phasespace_view(straight,off_diagonal_number,tim)
 #    return a
 #x=numericdiff(phasespace_view_wrapper,[straight],0)
+"""
 big_c=np.zeros_like(b)
 for i in range(sqrtlength):
     for j in range(sqrtlength):
@@ -164,14 +164,25 @@ for i in range(sqrtlength):
             for l in range(max(1,i-off_diagonal_number),min(sqrtlength-1,i+off_diagonal_number-1)):
                 for m in range(max(1,j-off_diagonal_number),min(sqrtlength-1,j+off_diagonal_number-1)):
                     big_c[i,j,k,l+k//3-1,m+k%3-1]=c_di_ds[i,j,k,l-max(i-off_diagonal_number,0),m-max(j-off_diagonal_number,0)]
-k=(b[7,7,4]!=0)*1.
-k[7,7]*=.5
-#plt.imshow(k,cmap='gray')
-#plt.show()
-k=(big_c[7,7,4]!=0)*1.
-k[7,7]*=.5
+                    """
+def cutter(i,j,k,py_big):
+    small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
+    if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
+        #find middle
+        m1,m2=i,j
+        #find size
+        size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
+        arr=py_big[m1-size//2:m1+size//2+1,m2-size//2:m2+size//2+1]
+        small[off_diagonal_number-size//2:off_diagonal_number+size//2+1,off_diagonal_number-size//2:off_diagonal_number+size//2+1]=arr
+    return small
 
-#plt.imshow(k,cmap='gray')
-#plt.show()
-print(np.allclose(a,c_pure_phase))
-print(np.allclose(b,big_c))
+
+small_py=np.zeros_like(c_di_ds)
+for i in range(sqrtlength):
+    for j in range(sqrtlength):
+        for k in range(9):
+            small_py[i,j,k]=cutter(i,j,k,python_din_ds[i,j,k])
+
+print(np.allclose(phython_pure,c_pure_phase))
+print(np.allclose(small_py,c_di_ds))
+print(np.random.rand())
