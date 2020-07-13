@@ -46,9 +46,9 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
                     else:
                         assert np.shape(weight_list[n]) == dimensions
-                    assert len(input_dimensions) == 1
-                    assert np.shape(weight_list[n])[1] == input_dimensions[0]
-                    input_dimensions = (np.shape(weight_list[n])[0],)
+                    #assert len(input_dimensions) == 1
+                    assert np.shape(weight_list[n])[1] == input_dimensions[-1]
+                    input_dimensions = input_dimensions[:-1]+(np.shape(weight_list[n])[0],)
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(
                         generator_apply_fully_connected(self, n))
@@ -148,7 +148,8 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):
-            return model.weight_list[n]@inp
+            #return model.weight_list[n]@inp
+            return np.einsum('...i,ji->...j',inp,model.weight_list[n])
         return apply_fully_connected
 
     def generator_back_fully_connected(model, n):
@@ -171,7 +172,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
             for i, _ in np.ndenumerate(derivative):
                 derivative[i] = oldback[(i[0],) + i[2:]] * \
                     propagation_values[i[1]]
-            print('here', np.shape(derivative))
+            #print('here', np.shape(derivative))
             return derivative
         return derivative_fully_connected
 
