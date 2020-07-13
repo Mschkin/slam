@@ -691,7 +691,7 @@ void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, doubl
 {
     //return np.einsum('ijkmn,mn->ijk',dintered_dstraight,dV_dintrest)
     int block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
-#define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number - 1) + (m)]
+#define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number + 1) + (m)]
 #define dV_dinterest(m, n) dV_dinterest[(m)*sqrtlength + (n)]
 #define dV_dstraight(i, j, k) dV_dstraight[(i)*sqrtlength * 9 + (j)*9 + (k)]
     int size;

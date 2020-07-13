@@ -184,6 +184,5 @@ for i in range(sqrtlength):
 
 print(np.allclose(phython_pure,c_pure_phase))
 print(np.allclose(small_py,c_di_ds))
-print(py_dV_dstraight[:5,:5,0])
-print(c_dV_dstaight[:5,:5,0])
+print(np.allclose(py_dV_dstraight,c_dV_dstaight))
 print(np.random.rand())
