@@ -60,7 +60,7 @@ def pipeline(I1, I2):
     I1 = np.swapaxes(np.swapaxes(I1, 0, 2), 1, 2) / 255 - .5
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
     tim.tick()
-    print('pipeline')
+    print(np.shape(I1))
     sqrtlength = 99
     const_length = sqrtlength ** 2
     off_diagonal_number = 10
@@ -137,7 +137,7 @@ I1 = np.random.randint(0, 255, (226, 226, 3))
 I2 = np.random.randint(0, 255, (226, 226, 3))
 
 #cProfile.run('pipeline(I1, I2)')
-#pipeline(I1, I2)
+pipeline(I1, I2)
 sqrtlength = 20
 const_length = sqrtlength ** 2
 off_diagonal_number = 5

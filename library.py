@@ -9,9 +9,13 @@ import matplotlib.pyplot as plt
 def conv(f, I):
     # I: farbe unten rechts
     # f: filterzahl unten rechts farbe
-    I = np.swapaxes(np.swapaxes(I, 0, 2), 0, 1)
-    c = np.array([convolve(f[i, ::-1, ::-1, ::-1], I, mode='valid')
-                  [:, :, 0] for i in range(len(f))])
+    s = np.shape(I)
+    I = np.swapaxes(np.swapaxes(I, -3, -1), -3, -2)
+    c = np.zeros((s[:-3])+(len(f), s[-2]+1-np.shape(f)
+                           [1], s[-1]+1-np.shape(f)[2]))
+    for index, _ in np.ndenumerate(np.zeros((s[:-3]))):
+        c[index] = np.array([convolve(f[i, ::-1, ::-1, ::-1], I[index], mode='valid')
+                             [:, :, 0] for i in range(len(f))])
     # si=np.shape(I)
     # sf=np.shape(f)
     #c = np.array([np.random.rand(si[1]-sf[1]+1,si[2]-sf[2]+1) for i in range(len(f))])
@@ -26,7 +30,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
     # implementet: filter, fully_connected,sigmoid, softmax,pooling,view
     # example:
     # modelclass = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (36,)), ('fully_connected', (3, 36)), ('sigmoid', None)], (3, 30, 30))
+    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (3, 36)), ('sigmoid', None)], (3, 30, 30))
     #model = modelclass([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
     class model_class:
         def __init__(self, weight_list):
@@ -48,7 +52,8 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         assert np.shape(weight_list[n]) == dimensions
                     #assert len(input_dimensions) == 1
                     assert np.shape(weight_list[n])[1] == input_dimensions[-1]
-                    input_dimensions = input_dimensions[:-1]+(np.shape(weight_list[n])[0],)
+                    input_dimensions = input_dimensions[:-1] + \
+                        (np.shape(weight_list[n])[0],)
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(
                         generator_apply_fully_connected(self, n))
@@ -57,12 +62,12 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
                     else:
                         assert np.shape(weight_list[n]) == dimensions
-                    assert len(input_dimensions) == 3
-                    assert np.shape(weight_list[n])[3] == input_dimensions[0]
-                    assert np.shape(weight_list[n])[1] <= input_dimensions[1]
-                    assert np.shape(weight_list[n])[2] <= input_dimensions[2]
-                    input_dimensions = (np.shape(weight_list[n])[0], input_dimensions[1] - np.shape(
-                        weight_list[n])[1] + 1, input_dimensions[2] - np.shape(weight_list[n])[2] + 1)
+                    #assert len(input_dimensions) == 3
+                    assert np.shape(weight_list[n])[3] == input_dimensions[-3]
+                    assert np.shape(weight_list[n])[1] <= input_dimensions[-2]
+                    assert np.shape(weight_list[n])[2] <= input_dimensions[-1]
+                    input_dimensions = input_dimensions[:-3]+(np.shape(weight_list[n])[0], input_dimensions[-2] - np.shape(
+                        weight_list[n])[1] + 1, input_dimensions[-1] - np.shape(weight_list[n])[2] + 1)
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_filter(self, n))
                 elif kind == 'sigmoid':
@@ -75,19 +80,20 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.call_list.append(generator_apply_softmax())
                 elif kind == 'pooling':
                     assert len(dimensions) == 3
-                    assert input_dimensions[0] % dimensions[0] == 0
-                    assert input_dimensions[1] % dimensions[1] == 0
-                    assert input_dimensions[2] % dimensions[2] == 0
+                    assert input_dimensions[-3] % dimensions[0] == 0
+                    assert input_dimensions[-2] % dimensions[1] == 0
+                    assert input_dimensions[-1] % dimensions[2] == 0
                     assert weight_list[n] == None
-                    input_dimensions = tuple(
-                        np.array(input_dimensions) // np.array(dimensions))
+                    input_dimensions = input_dimensions[:-3]+tuple(
+                        np.array(input_dimensions[-3:]) // np.array(dimensions))
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_pooling(dimensions))
                 elif kind == 'view':
+                    assert len(dimensions)>1
                     assert weight_list[n] == None
                     assert np.product(
-                        input_dimensions) == np.product(dimensions)
-                    input_dimensions = dimensions
+                        input_dimensions[-1*dimensions[0]:]) == np.product(dimensions[1:])
+                    input_dimensions =input_dimensions[-1*dimensions[0]:]+ dimensions[1:]
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_view(dimensions))
                 else:
@@ -148,12 +154,14 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):
-            #return model.weight_list[n]@inp
-            return np.einsum('...i,ji->...j',inp,model.weight_list[n])
+            # return model.weight_list[n]@inp
+            return np.einsum('...i,ji->...j', inp, model.weight_list[n])
         return apply_fully_connected
 
     def generator_back_fully_connected(model, n):
         def back_fully_connected(oldback, _):
+            return np.einsum('ij,...i->...j',model.weight_list[-n - 1],oldback)
+            """
             newback = np.zeros(
                 tuple([np.shape(model.weight_list[-n - 1])[1]] + list(np.shape(oldback)[1:])))
             for i, _ in np.ndenumerate(newback):
@@ -163,6 +171,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                                   for a in range(np.shape(model.weight_list[-n - 1])[0])])
             # print(np.shape(newback))
             return newback
+            """
         return back_fully_connected
 
     def generator_derivative_fully_connected(model, n):
@@ -188,7 +197,9 @@ def modelbuilder(tuple_list, input_dimension_numbers):
             # rint(np.shape(oldback))
             for i, _ in np.ndenumerate(newback):
                 newback[i] = sum([oldback[(g0, g1, g2) + i[3:]] * model.weight_list[-n - 1][g0, i[1] - g1, i[2] - g2, i[0]]
-                                  for g0 in range(np.shape(model.weight_list[-n - 1])[0]) for g1 in range(max(0, i[1] - np.shape(model.weight_list[-n - 1])[1] + 1), min(np.shape(oldback)[1], i[1] + 1)) for g2 in range(max(0, i[2] - np.shape(model.weight_list[-n - 1])[2] + 1), min(np.shape(oldback)[2], i[2] + 1))])
+                                  for g0 in range(np.shape(model.weight_list[-n - 1])[0]) 
+                                  for g1 in range(max(0, i[1] - np.shape(model.weight_list[-n - 1])[1] + 1), min(np.shape(oldback)[1], i[1] + 1)) 
+                                  for g2 in range(max(0, i[2] - np.shape(model.weight_list[-n - 1])[2] + 1), min(np.shape(oldback)[2], i[2] + 1))])
             return newback
         return back_filter
 
@@ -236,7 +247,11 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_apply_pooling(dimensions):
         def apply_pooling(inp):
-            return block_reduce(inp, (dimensions), np.max)
+            s = np.shape(inp)
+            c = np.zeros(s[:-3]+tuple(np.array(s[-3:])//np.array(dimensions)))
+            for index, _ in np.ndenumerate(np.zeros((s[:-3]))):
+                c[index] = block_reduce(inp[index], (dimensions), np.max)
+            return c
         return apply_pooling
 
     def generator_back_pooling(dimensions):
@@ -253,7 +268,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_apply_view(dimension):
         def apply_view(inp):
-            return np.reshape(inp, dimension)
+            return np.reshape(inp,np.shape(inp)[:-1*dimension[0]]+dimension[1:])
         return apply_view
 
     def generator_back_view(dimensions):
@@ -325,5 +340,8 @@ def phasespace_view(straight, off_diagonal_number):
     dintered_dstraight = np.reshape(dintered_dstraight, (N, N, 9, N, N))
     return np.reshape(pure_phase, (N, N)), np.einsum('ijkl,ijkmn->ijlmn', dnormed_straight_dstraight, dintered_dstraight)
 
-def back_phase_space(dV_dintrest,dintered_dstraight):
-    return np.einsum('ijkmn,mn->ijk',dintered_dstraight,dV_dintrest)
+
+def back_phase_space(dV_dintrest, dintered_dstraight):
+    return np.einsum('ijkmn,mn->ijk', dintered_dstraight, dV_dintrest)
+
+

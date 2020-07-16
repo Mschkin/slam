@@ -1,6 +1,5 @@
 import numpy as np
 from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
-from test import invert3,ind2
 from cffi import FFI
 import copy
 import quaternion
