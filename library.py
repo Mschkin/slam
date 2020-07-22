@@ -191,16 +191,19 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return apply_filter
 
     def generator_back_filter(model, n):
+        weight=model.weight_list[-n - 1]
+        s_w=np.shape(weight)
         def back_filter(oldback, _):
-            newback = np.zeros((np.shape(model.weight_list[-n - 1])[3], np.shape(model.weight_list[-n - 1])[1] +
-                                np.shape(oldback)[1] - 1, np.shape(model.weight_list[-n - 1])[2] + np.shape(oldback)[2] - 1) + np.shape(oldback)[3:])
-            # rint(np.shape(oldback))
-            for i, _ in np.ndenumerate(newback):
-                newback[i] = sum([oldback[(g0, g1, g2) + i[3:]] * model.weight_list[-n - 1][g0, i[1] - g1, i[2] - g2, i[0]]
-                                  for g0 in range(np.shape(model.weight_list[-n - 1])[0]) 
-                                  for g1 in range(max(0, i[1] - np.shape(model.weight_list[-n - 1])[1] + 1), min(np.shape(oldback)[1], i[1] + 1)) 
-                                  for g2 in range(max(0, i[2] - np.shape(model.weight_list[-n - 1])[2] + 1), min(np.shape(oldback)[2], i[2] + 1))])
-            return newback
+            s_old = np.array(np.shape(oldback))
+            s_old[-2:] += [2*(s_w[1]-1), 2*(s_w[2]-1)]
+            bigold = np.zeros(s_old)
+            bigold[..., s_w[1]-1:-(s_w[1]-1),
+                s_w[2]-1:-(s_w[2]-1)] = oldback
+            r = []
+            for i in range(s_w[3]):
+                r.append(convolve(bigold, np.reshape(
+                    weight[::-1, :, :, i], (1,)*(len(s_old)-3)+s_w[:3]), mode='valid'))
+            return np.concatenate(tuple(r), axis=-3)
         return back_filter
 
     def generator_derivative_filter(model, n):
