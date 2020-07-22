@@ -223,11 +223,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_sigmoid():
         def back_sigmoid(oldback, propagation_value):
-            newback = np.zeros(np.shape(oldback))
-            for i, _ in np.ndenumerate(newback):
-                newback[i] = oldback[i] * expit(propagation_value[i[:len(np.shape(propagation_value))]]) * (
-                    1 - expit(propagation_value[i[:len(np.shape(propagation_value))]]))
-            return newback
+            return oldback*expit(propagation_value)*(1-expit(propagation_value))
         return back_sigmoid
 
     def generator_apply_softmax():
@@ -237,15 +233,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_softmax():
         def back_softmax(oldback, propagation_value):
-            newback = np.zeros(np.shape(oldback))
-            #print(np.shape(propagation_value), np.shape(oldback))
-            # print(len(np.shape(propagation_value)))
-            for i, _ in np.ndenumerate(newback):
-                #print(i, i[:len(np.shape(propagation_value))])
-                newback[i] = oldback[i] * \
-                    expit(
-                        propagation_value[i[:len(np.shape(propagation_value))]])
-            return newback
+            return oldback*expit(propagation_value)
         return back_softmax
 
     def generator_apply_pooling(dimensions):
