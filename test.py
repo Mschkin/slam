@@ -49,8 +49,10 @@ oldback=apply_pooling(propagation_value,dimensions)
 
 r = new_pool(oldback, propagation_value, dimensions)
 b = numericdiff(apply_pooling, [propagation_value, dimensions], 0)[0]
+print(np.shape(b))
 print([[np.linalg.norm(b[i,:,:,:, j,:,:,:]) for i in range(5)] for j in range(5)])
 b = np.reshape(b, (5, 2, 3, 8, 2, 8, 2, 5,2, 8, 8))
+print([[np.linalg.norm(b[:,:,:,:,:, i,:,:,:,:,j]) for i in range(5)] for j in range(5)])
 b = np.einsum('ijklmnoijln->ijklmno', b)
 b=np.reshape(b,(5, 6, 16, 16))
 print(np.shape(b),np.shape(r))
