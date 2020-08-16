@@ -475,25 +475,6 @@ def wrap_find_BT_from_BT(bt_true, xp, yp, weights):
     return bt
 
 
-def numericdiff(f, inpt, index):
-    # get it running for quaternions
-    r = f(*inpt)
-    h = 1 / 10**7
-    der = []
-    for inputnumber, inp in enumerate(inpt):
-        if inputnumber != index:
-            continue
-        ten = np.zeros(tuple(list(np.shape(inp)) +
-                             list(np.shape(r))), dtype=np.double)
-        for s, _ in np.ndenumerate(inp):
-            n = deepcopy(inp) * 1.0
-            n[s] += h
-            ten[s] = (
-                f(*(inpt[:inputnumber] + [n] + inpt[inputnumber + 1:])) - r) / h
-        der.append(ten)
-    return der
-
-
 def tester():
     # tim = timer()
     # tim.tick()
