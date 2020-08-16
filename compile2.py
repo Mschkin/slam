@@ -1,6 +1,5 @@
 import numpy as np
 from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
-from test import invert3,ind2
 from cffi import FFI
 import copy
 import quaternion
@@ -14,7 +13,9 @@ c_header = """void sparse_invert(double *mat, double *v1, double *v2);
                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
             void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
             double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);"""
+                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
+                     void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase);
+            void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight);"""
 ffi.cdef(c_header)
 f = open('geometry2.h', 'w')
 f.write(c_header)
@@ -58,6 +59,46 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
+def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
+    xp_c = copy.deepcopy(xp)
+    yp_c = copy.deepcopy(yp)
+    xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
+    yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
+    hdx_c = np.zeros(const_length)
+    hdx_p = ffi.cast('double*', hdx_c.__array_interface__['data'][0])
+    hdy_c = np.zeros(const_length)
+    hdy_p = ffi.cast('double*', hdy_c.__array_interface__['data'][0])
+    hnd_raw_c = np.zeros(array_length * 9)
+    hnd_raw_p = ffi.cast(
+        'double*', hnd_raw_c.__array_interface__['data'][0])
+    get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
+    print(hdx_c[0],hdy_c[0],hnd_raw_c[0])
+    return hdx_p,hdy_p,hnd_raw_p,[hdx_c,hdy_c,hnd_raw_c]
+
+def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p,const_length,array_length):
+    xp_c = copy.deepcopy(xp)
+    yp_c = copy.deepcopy(yp)
+    xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
+    yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
+    q_truec = q_true
+    q_truep = ffi.new('double[4]', q_truec.tolist())
+    t_true_c = t_true
+    t_true_p = ffi.new('double[3]', t_true_c.tolist())
+    weights_c = copy.deepcopy(weights)
+    weights_p = ffi.cast('double*', weights_c.__array_interface__['data'][0])
+    r_xc = np.zeros(const_length)
+    r_xp = ffi.cast('double*', r_xc.__array_interface__['data'][0])
+    r_yc = np.zeros(const_length)
+    r_yp = ffi.cast('double*', r_yc.__array_interface__['data'][0])
+    hnd_c = np.zeros(array_length)
+    hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
+    dVdg_c = np.zeros(array_length)
+    dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
+    V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
+    return V_c,dVdg_c
+
+
+
 class timer:
     lastcall = 0
 
@@ -70,7 +111,8 @@ class timer:
         self.lastcall = call
         print(diff)
         return diff
-sqrtlength = 20
+"""
+sqrtlength = 99
 const_length = sqrtlength ** 2
 off_diagonal_number = 5
 array_length = const_length * (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
@@ -118,12 +160,14 @@ tim = timer()
 tim.tick()
 V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 tim.tick()
+
 #v_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
 hdx, hdy, hnd_raw = get_hessian_parts_R(xp_old, yp_old)
 #rx, ry = get_rs(q_true, t_true, weights3, xp_old, yp_old, hdx, hdy, hnd_raw)
 
 #print(np.linalg.norm(ry - r_yc))
 tim.tick()
+
 dVdg = dVdg_function(xp_old, yp_old, q_true, t_true, weights3)
 
 tim.tick()
@@ -135,3 +179,4 @@ for i in range(sqrtlength):
 dVdg = np.array(dVdglist)
 print(V_c-cost_funtion(xp_old, yp_old, q_true, t_true, weights3))
 print(np.linalg.norm(np.reshape(dVdg,array_length)- dVdg_c))
+"""

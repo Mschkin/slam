@@ -49,25 +49,48 @@ void sparse_invert(double *mat, double *v1, double *v2)
                     v[blocky, y] -= v[blockx, x] * c
     */
     double c;
+    int c_index;
+    int mat_x_index;
+    int mat_y_index;
+    int mat_xx;
     for (int blockx = 0; blockx < sqrtlength; blockx++)
     {
-        for (int x = 0; x < sqrtlength; x++)
+        mat_xx = indexb(blockx, blockx) * const_length;
+        mat_x_index = mat_xx;
+        for (int blocky = blockx; (blocky < sqrtlength) && (blocky < blockx + 2 * off_diagonal_number + 1); blocky++)
         {
-            for (int blocky = blockx; (blocky < sqrtlength) && (blocky < blockx + 2 * off_diagonal_number + 1); blocky++)
+            c_index = indexb(blocky, blockx) * const_length;
+            mat_y_index = c_index;
+            for (int y = 0; y < sqrtlength; y++)
             {
-                for (int y = (blockx == blocky) ? (x + 1) : 0; y < sqrtlength; y++)
+                for (int x = 0; x < (blockx == blocky ? y : sqrtlength); x++)
                 {
-                    c = mat(blocky, y, blockx, x) / mat(blockx, x, blockx, x);
+                    c = mat[c_index] / mat[mat_xx];
+                    c_index++;
+                    mat_xx += sqrtlength + 1;
                     for (int blockx2 = blockx; (blockx2 < blockx + 2 * off_diagonal_number + 1) && (blockx2 < sqrtlength); blockx2++)
                     {
                         for (int x2 = 0; x2 < sqrtlength; x2++)
                         {
-                            mat(blocky, y, blockx2, x2) -= mat(blockx, x, blockx2, x2) * c;
+                            mat[mat_y_index] -= mat[mat_x_index] * c;
+                            mat_y_index++;
+                            mat_x_index++;
                         }
+                        mat_y_index -= sqrtlength;
+                        mat_y_index += const_length;
+                        mat_x_index -= sqrtlength;
+                        mat_x_index += const_length;
                     }
                     v1(blocky, y) -= v1(blockx, x) * c;
                     v2(blocky, y) -= v2(blockx, x) * c;
+                    mat_y_index -= (blockx + 2 * off_diagonal_number + 1) > sqrtlength ? (sqrtlength - blockx) * const_length : (2 * off_diagonal_number + 1) * const_length;
+                    mat_x_index -= (blockx + 2 * off_diagonal_number + 1) > sqrtlength ? (sqrtlength - blockx) * const_length : (2 * off_diagonal_number + 1) * const_length;
+                    mat_x_index += sqrtlength;
                 }
+                c_index += (blockx == blocky) ? (sqrtlength - y) : 0;
+                mat_xx -= (blockx == blocky) ? ((sqrtlength + 1) * y) : const_length + sqrtlength;
+                mat_y_index += sqrtlength;
+                mat_x_index -= (blockx == blocky) ? (sqrtlength * y) : const_length;
             }
         }
     }
@@ -149,6 +172,8 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                              double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
+    printf("%f", weights_not_normed[0]);
+    printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
 
 #define hdx_R(i, j) hdx_R[sqrtlength * (i) + (j)]
 #define hdy_R(i, j) hdy_R[sqrtlength * (i) + (j)]
@@ -160,6 +185,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 #define Hdy_R_inv(i, j, k, l) Hdy_R_inv[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
 #define Hnd_R_inv(i, j, k, l) Hnd_R_inv[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
     double *weights = malloc(array_length * sizeof(double));
+    printf("arraylength: %i \n", array_length);
     double norm = 0;
     for (size_t i = 0; i < array_length; i++)
     {
@@ -231,8 +257,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     double *L_x = malloc(const_length * sizeof(double));
     double *L_y = malloc(const_length * sizeof(double));
-    double *L_y_inter = malloc(const_length * sizeof(double));
-#define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
+    double *Hnd_R_divided = malloc(array_length * sizeof(double));
+#define Hnd_R_divided(i, j, k, l) Hnd_R_divided[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
 #define L_x(i, j) L_x[(i)*sqrtlength + (j)]
 #define L_y(i, j) L_y[(i)*sqrtlength + (j)]
     for (int blocky = 0; blocky < sqrtlength; blocky++)
@@ -247,6 +273,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             {
                 for (int x = 0; x < sqrtlength; x++)
                 {
+                    Hnd_R_divided(blocky, y, blockx, x) = Hnd_R(blocky, y, blockx, x) / Hdy_R(blockx, x);
                     L_x(blocky, y) += weights(blocky, y, blockx, x);
                     L_y(blocky, y) += weights(blockx, x, blocky, y);
                 }
@@ -259,54 +286,51 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     //inv=np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     //rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
     double *Hnd_R_inv_inter = calloc(big_array_length, sizeof(double));
-//#define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
 #define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
+    double *L_y_inter = calloc(const_length, sizeof(double));
+#define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
+    int Hnd_inv_index;
+    int Hnd_indexy;
+    int Hnd_indexx;
+    int save;
     clock_t start = clock(), diff;
-    int index_Hnd_inv = 0;
-    int index_Hnd_x = 0;
-    int index_Hnd_y = 0;
-    int index_Hdy = 0;
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int blockx = (blocky - 2 * off_diagonal_number < 0) ? 0 : blocky - 2 * off_diagonal_number; blockx < sqrtlength && (blockx < blocky + 2 * off_diagonal_number + 1); blockx++)
         {
-            index_Hnd_inv = indexb(blocky, blockx) * const_length;
             //max(0,blockx-b,blocky-b),min(l,blockx+b+1,blocky+b+1)
             int lower_bound = blockx - off_diagonal_number < 0 ? 0 : blockx - off_diagonal_number;
             lower_bound = lower_bound > blocky - off_diagonal_number ? lower_bound : blocky - off_diagonal_number;
             int upper_bound = sqrtlength > blockx + off_diagonal_number + 1 ? blockx + off_diagonal_number + 1 : sqrtlength;
             upper_bound = upper_bound < blocky + off_diagonal_number + 1 ? upper_bound : blocky + off_diagonal_number + 1;
-            index_Hnd_y = indexs(blocky, lower_bound) * const_length;
-            index_Hnd_x = indexs(blockx, lower_bound) * const_length;
+            Hnd_inv_index = indexb(blocky, blockx) * const_length;
             for (int block = lower_bound; block < upper_bound; block++)
             {
+                Hnd_indexy = indexs(blocky, block) * const_length;
+                Hnd_indexx = indexs(blockx, block) * const_length;
+                save = Hnd_indexx;
                 for (int y = 0; y < sqrtlength; y++)
                 {
                     for (int x = 0; x < sqrtlength; x++)
                     {
-                        for (int element = 0; element < sqrtlength; element++)
+                        for (; Hnd_indexx < save + (x + 1) * sqrtlength; Hnd_indexx++)
                         {
-                            Hnd_R_inv_inter[index_Hnd_inv] += Hnd_R[index_Hnd_y] * Hnd_R[index_Hnd_x] / Hdy_R[index_Hdy];
-                            index_Hnd_y++;
-                            index_Hnd_x++;
-                            index_Hdy++;
+                            Hnd_R_inv_inter[Hnd_inv_index] += Hnd_R_divided[Hnd_indexy] * Hnd_R[Hnd_indexx];
+                            Hnd_indexy++;
                         }
-                        index_Hnd_y -= sqrtlength;
-                        index_Hdy -= sqrtlength;
-                        index_Hnd_inv++;
+                        Hnd_inv_index++;
+                        Hnd_indexy -= sqrtlength;
                     }
-                    index_Hnd_y += sqrtlength;
-                    index_Hnd_x -= const_length;
+                    Hnd_indexx -= const_length;
+                    Hnd_indexy += sqrtlength;
                 }
-                index_Hnd_x += const_length;
-                index_Hnd_inv -= const_length;
-                index_Hdy += sqrtlength;
+                Hnd_inv_index -= const_length;
             }
         }
     }
     diff = clock() - start;
     int msec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("the mult took %i msec\n", msec);
+    printf("matmul took %i msec\n", msec);
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)
@@ -352,6 +376,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     free(L_y);
     free(weights);
     free(L_y_inter);
+    free(Hnd_R_divided);
 #undef hnd_raw_R
 #undef Hnd_R
 #undef Hnd_R_inv_inter
@@ -370,6 +395,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 #undef Hdx_R
 #undef hdy_R
 #undef Hdy_R
+#undef Hnd_R_divided
     return norm;
 }
 void q_mult(double q1[4], double q2[4], double qr[4])
@@ -490,6 +516,210 @@ double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_n
 #undef yp
 #undef weights_not_normed
 #undef dVdg
+}
+
+void phase_space_view_c(double *straight, double *full_din_dstraight, double *pure_phase)
+{
+    /*
+    N = np.shape(straight)[0]
+    assert np.shape(straight)[2] == 9
+    norm = 1 /np.einsum('ijk->ij', straight)
+    dnormed_straight_dstraight = np.einsum('ij,kl->ijkl',norm,np.eye(9))-np.einsum('ijk,ij,l->ijkl',straight,norm**2,np.ones(9))
+    straight = np.einsum('ijk,ij->ijk', straight, norm)
+    print(N)
+    phasespace_progator = np.zeros((N, N, N, N))*/
+    double *norm = malloc(const_length * sizeof(double));
+    double *dnormed_straight_dstraight = malloc(const_length * 81 * sizeof(double));
+#define norm(i, j) norm[sqrtlength * (i) + (j)]
+#define straight(i, j, k) straight[sqrtlength * 9 * (i) + (j)*9 + (k)]
+#define dnormed_straight_dstraight(i, j, k, l) dnormed_straight_dstraight[sqrtlength * 81 * (i) + (j)*81 + (k)*9 + (l)]
+    /*start_values = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            if off_diagonal_number <= i <= N - off_diagonal_number and off_diagonal_number <= j <= N - off_diagonal_number:
+                start_values[i, j] = 1
+    tim.tick()
+    pure_phase = np.reshape(start_values, (N * N))*/
+    double test = 0;
+#define pure_phase(i, j) pure_phase[(i)*sqrtlength + (j)]
+    for (int i = 0; i < sqrtlength; i++)
+    {
+        for (int j = 0; j < sqrtlength; j++)
+        {
+            pure_phase(i, j) = (off_diagonal_number <= i) * (i < sqrtlength - off_diagonal_number) * (off_diagonal_number <= j) * (j < sqrtlength - off_diagonal_number);
+            norm(i, j) = 0;
+            for (int k = 0; k < 9; k++)
+            {
+                norm(i, j) += straight(i, j, k);
+            }
+            norm(i, j) = 1 / norm(i, j);
+            for (int k = 0; k < 9; k++)
+            {
+                for (int l = 0; l < 9; l++)
+                {
+                    dnormed_straight_dstraight(i, j, k, l) = -straight(i, j, k) * norm(i, j) * norm(i, j);
+                }
+                dnormed_straight_dstraight(i, j, k, k) += norm(i, j);
+                straight(i, j, k) *= norm(i, j);
+            }
+            /* 1<i<N-1; 1<j<N-1
+            phasespace_progator[i, j, i, j] = straight[i, j, 4]
+            # right
+            phasespace_progator[i, j + 1, i, j] = straight[i, j, 5]
+            # top right
+            phasespace_progator[i - 1, j + 1, i, j] = straight[i, j, 2]
+            # top
+            phasespace_progator[i - 1, j, i, j] = straight[i, j, 1]
+            # top left
+            phasespace_progator[i - 1, j - 1, i, j] = straight[i, j, 0]
+            # left
+            phasespace_progator[i, j - 1, i, j] = straight[i, j, 3]
+            # left down
+            phasespace_progator[i + 1, j - 1, i, j] = straight[i, j, 6]
+            # down
+            phasespace_progator[i + 1, j, i, j] = straight[i, j, 7]
+            # down right
+            phasespace_progator[i + 1, j + 1, i, j] = straight[i, j, 8]*/
+        }
+    }
+    //dintered_dstraight = np.zeros((N, N, 9, N*N))
+    int block_size = (2 * off_diagonal_number - 1) * (2 * off_diagonal_number - 1);
+    double *dinterest_dstraight = calloc(const_length * 9 * block_size, sizeof(double));
+    double *dummy_pure_phase = malloc(const_length * sizeof(double));
+    double *dummy_point;
+    double dummy_block[(2 * off_diagonal_number - 1) * (2 * off_diagonal_number - 1)] = {0};
+#define dummy_pure_phase(i, j) dummy_pure_phase[(i)*sqrtlength + (j)]
+#define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number - 1) + (m)]
+#define dummy_block(i, j) dummy_block[(i) * (2 * off_diagonal_number - 1) + (j)]
+    /*for _ in range(off_diagonal_number):
+        for ind, _ in np.ndenumerate(straight):
+            z = np.zeros((N+2,N+2))
+            z[(ind[0]+ind[2]//3-1) +1,ind[1]+ind[2] %3-1+1] = pure_phase[ind[0]*N+ind[1]]
+            dintered_dstraight[ind] = np.reshape(z[1:-1,1:-1],N*N)+phasespace_progator@dintered_dstraight[ind]
+        pure_phase = phasespace_progator@pure_phase*/
+
+    for (int pro_range = 0; pro_range < off_diagonal_number; pro_range++)
+    {
+        for (int set_zero = 0; set_zero < const_length; set_zero++)
+        {
+            dummy_pure_phase[set_zero] = 0;
+        }
+        for (int straight_x = off_diagonal_number - pro_range; straight_x < sqrtlength - off_diagonal_number + pro_range; straight_x++)
+        {
+            for (int straight_y = off_diagonal_number - pro_range; straight_y < sqrtlength - off_diagonal_number + pro_range; straight_y++)
+            {
+                for (int straight_d = 0; straight_d < 9; straight_d++)
+                {
+                    dummy_pure_phase(straight_y + straight_d / 3 - 1, straight_x + straight_d % 3 - 1) += straight(straight_y, straight_x, straight_d) * pure_phase(straight_y, straight_x);
+                    int max1 = 0 > off_diagonal_number - straight_x ? 0 : off_diagonal_number - straight_x;
+                    max1 = max1 > off_diagonal_number - straight_y ? max1 : off_diagonal_number - straight_y;
+                    max1 = max1 > straight_x - sqrtlength + off_diagonal_number ? max1 : straight_x - sqrtlength + off_diagonal_number;
+                    max1 = max1 > straight_y - sqrtlength + off_diagonal_number ? max1 : straight_y - sqrtlength + off_diagonal_number;
+                    for (int block_y = off_diagonal_number - pro_range + max1; block_y < off_diagonal_number + pro_range - 1 - max1; block_y++)
+                    {
+                        for (int block_x = off_diagonal_number - pro_range + max1; block_x < off_diagonal_number + pro_range - 1 - max1; block_x++)
+                        {
+                            for (int direction = 0; direction < 9; direction++)
+                            {
+                                dummy_block(block_y + direction / 3 - 1, block_x + direction % 3 - 1) += straight(straight_y + straight_d / 3 - 1 - off_diagonal_number + 1 + block_y, straight_x + straight_d % 3 - 1 - off_diagonal_number + 1 + block_x, direction) * dinterest_dstraight(straight_y, straight_x, straight_d, block_y, block_x);
+                            }
+                        }
+                    }
+                    dummy_block(off_diagonal_number - 1, off_diagonal_number - 1) += pure_phase(straight_y, straight_x);
+                    for (int block_copy = 0; block_copy < block_size; block_copy++)
+                    {
+                        dinterest_dstraight(straight_y, straight_x, straight_d, 0, block_copy) = dummy_block[block_copy];
+                        dummy_block[block_copy] = 0;
+                    }
+                }
+            }
+        }
+        dummy_point = pure_phase;
+        pure_phase = dummy_pure_phase;
+        dummy_pure_phase = dummy_point;
+    }
+
+    //make sure that the values of pure phase are at the return position
+    if (off_diagonal_number % 2 == 1)
+    {
+        for (int i = 0; i < const_length; i++)
+        {
+            dummy_pure_phase[i] = pure_phase[i];
+        }
+        dummy_point = pure_phase;
+        pure_phase = dummy_pure_phase;
+        dummy_pure_phase = dummy_point;
+    }
+    //np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
+    //full_din has a bigger shape than dinterest_dstraight
+    int big_block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
+#define full_din_dstraight(i, j, k, l, m) full_din_dstraight[(i)*sqrtlength * 9 * big_block_size + (j)*9 * big_block_size + (k)*big_block_size + (l) * (2 * off_diagonal_number + 1) + (m)]
+
+    for (int i = 0; i < sqrtlength; i++)
+    {
+        for (int j = 0; j < sqrtlength; j++)
+        {
+            for (int l = 0; l < 9; l++)
+            {
+                for (int m = 0; m < 2 * off_diagonal_number - 1; m++)
+                {
+                    for (int n = 0; n < 2 * off_diagonal_number - 1; n++)
+                    {
+                        for (int k = 0; k < 9; k++)
+                        {
+                            full_din_dstraight(i, j, l, m + k / 3, n + k % 3) += dnormed_straight_dstraight(i, j, k, l) * dinterest_dstraight(i, j, k, m, n);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    free(norm);
+    free(dnormed_straight_dstraight);
+    free(dinterest_dstraight);
+    free(dummy_pure_phase);
+#undef norm
+#undef straight
+#undef dummy_block
+#undef dummy_pure_phase
+#undef dnormed_straight_dstraight
+#undef pure_phase
+#undef dinterest_dstraight
+#undef full_din_dstraight
+}
+void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight)
+{
+    //return np.einsum('ijkmn,mn->ijk',dintered_dstraight,dV_dintrest)
+    int block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
+#define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number + 1) + (m)]
+#define dV_dinterest(m, n) dV_dinterest[(m)*sqrtlength + (n)]
+#define dV_dstraight(i, j, k) dV_dstraight[(i)*sqrtlength * 9 + (j)*9 + (k)]
+    int size;
+    for (int i = 0; i < sqrtlength; i++)
+    {
+        for (int j = 0; j < sqrtlength; j++)
+        {
+            //size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
+            size = 2 * i + 1 < 2 * off_diagonal_number + 1 ? 2 * i + 1 : 2 * off_diagonal_number + 1;
+            size = size < 2 * j + 1 ? size : 2 * j + 1;
+            size = size < 2 * (sqrtlength - 1 - i) + 1 ? size : 2 * (sqrtlength - 1 - i) + 1;
+            size = size < 2 * (sqrtlength - 1 - j) + 1 ? size : 2 * (sqrtlength - 1 - j) + 1;
+            size = 0 < size ? size : 0;
+            for (int k = 0; k < 9; k++)
+            {
+                for (int m = off_diagonal_number - size / 2; m < off_diagonal_number + size / 2 + 1; m++)
+                {
+                    for (int n = off_diagonal_number - size / 2; n < off_diagonal_number + size / 2 + 1; n++)
+                    {
+                        dV_dstraight(i, j, k) += dinterest_dstraight(i, j, k, m, n) * dV_dinterest(m + i - off_diagonal_number, n + j - off_diagonal_number);
+                    }
+                }
+            }
+        }
+    }
+#undef dV_dstraight
+#undef dV_dinterest
+#undef dinterest_dstraight
 }
 
 int main(void)

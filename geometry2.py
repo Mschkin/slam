@@ -62,7 +62,7 @@ def rotate(q, t, point):
 
 def cost_funtion(xp, yp, q_true, t_true, weights):
     global count
-    np.random.seed(12679)
+    #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
     rx, ry= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     #print(max(rx-rxn), max(ry-ryn))

@@ -9,20 +9,16 @@ import matplotlib.pyplot as plt
 # todo:
 # fyjkihg67uio87ygh
 # boundaries of correct convergence, 0.2 seems still to work
+# we used a distance of off_diagonal_number to boundaries as strart of phasespaceview, to bias against points on boundary, because they could lie outside the other image
 # combine several pictures to one map
-# for training use b,t to get r then calculate b,t (build including h gradient with respect to weights)
-#
-#
-# save weights row and column sum
-# check why we loose 6 digit in find analytic
+# for training use b,t to get r
 # check if double or float is faster
+# check why there is an error for too big off diagonal numbers in geomerty2.c
 #
-#
-# introduce some kind of abort into while loops in c
+# 
 
 
-random.seed(126798)
-np.random.seed(12679)
+
 # random.seed(1267)
 
 
@@ -519,5 +515,7 @@ def tester():
 
 """
 if __name__ == "__main__":
+    random.seed(126798)
+    np.random.seed(12679)
     tester()
 """
