@@ -267,8 +267,6 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
         {
             L_x(blocky, y) = 0;
             L_y(blocky, y) = 0;
-            L_y_inter(blocky, y) = 0;
-
             for (int blockx = (blocky - off_diagonal_number < 0) ? 0 : blocky - off_diagonal_number; (blockx < sqrtlength) && (blockx < (blocky + off_diagonal_number + 1)); blockx++)
             {
                 for (int x = 0; x < sqrtlength; x++)

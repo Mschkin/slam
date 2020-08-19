@@ -1,5 +1,5 @@
-import numpy as np
 from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
+import numpy as np
 from cffi import FFI
 import copy
 import quaternion
@@ -20,19 +20,28 @@ ffi.cdef(c_header)
 f = open('geometry2.h', 'w')
 f.write(c_header)
 f.close()
+c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, size_t *sizes);"""
+ffi.cdef(c_header)
+f = open('filter.h', 'w')
+f.write(c_header)
+f.close()
 ffi.set_source("_geometry2",  # name of the output C extension
-               '#include "geometry2.h"',
-               sources=['geometry2.c']
-               #,extra_compile_args=["-funroll-loops"]
-               #,extra_compile_args=["-pg"]
+               '''#include "geometry2.h"
+                  #include "filter.h"''',
+               sources=['geometry2.c', 'filter.c']
+               # ,extra_compile_args=["-funroll-loops"]
+               # ,extra_compile_args=["-pg"]
                )
 if __name__ == "__main__":
     ffi.compile(verbose=True)
+
 
 from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from _geometry2.lib import sparse_invert
+from _geometry2.lib import derivative_filter_c
+
 """
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
@@ -59,7 +68,26 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
-def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
+
+
+def derivative_filter_c_wrapper(propagtion_value, oldback, weigths):
+    propagtion_value_p = ffi.cast(
+        "double*", propagtion_value.__array_interface__['data'][0])
+    print('ob:',oldback[1,0,0,0])
+    oldback_p = ffi.cast("double*", oldback.__array_interface__['data'][0])
+    sizes = np.shape(weigths)+(oldback[0, 0, 0].size, np.shape(propagtion_value)[
+        1]-np.shape(weigths)[1]+1, np.shape(propagtion_value)[2]-np.shape(weigths)[2]+1)
+    sizes = np.array(sizes, dtype=np.uintp)
+    sizes_p = ffi.cast("size_t*", sizes.__array_interface__['data'][0])
+    derivative = np.zeros(
+        np.shape(weigths) + np.shape(oldback)[3:])
+    derivative_p = ffi.cast(
+        "double*", derivative.__array_interface__['data'][0])
+    derivative_filter_c(oldback_p, propagtion_value_p, derivative_p, sizes_p)
+    return derivative
+
+
+def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
@@ -72,10 +100,11 @@ def get_hessian_parts_wrapper(xp,yp,const_length,array_length):
     hnd_raw_p = ffi.cast(
         'double*', hnd_raw_c.__array_interface__['data'][0])
     get_hessian_parts_R_c(xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p)
-    print(hdx_c[0],hdy_c[0],hnd_raw_c[0])
-    return hdx_p,hdy_p,hnd_raw_p,[hdx_c,hdy_c,hnd_raw_c]
+    print(hdx_c[0], hdy_c[0], hnd_raw_c[0])
+    return hdx_p, hdy_p, hnd_raw_p, [hdx_c, hdy_c, hnd_raw_c]
 
-def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p,const_length,array_length):
+
+def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, const_length, array_length):
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
@@ -94,9 +123,9 @@ def dVdg_wrapper(xp,yp,weights,q_true,t_true,hdx_p,hdy_p,hnd_raw_p,const_length,
     hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
     dVdg_c = np.zeros(array_length)
     dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
-    V_c = dVdg_function_c(q_truep, t_true_p, weights_p, xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
-    return V_c,dVdg_c
-
+    V_c = dVdg_function_c(q_truep, t_true_p, weights_p,
+                          xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
+    return V_c, dVdg_c
 
 
 class timer:
@@ -111,6 +140,8 @@ class timer:
         self.lastcall = call
         print(diff)
         return diff
+
+
 """
 sqrtlength = 99
 const_length = sqrtlength ** 2

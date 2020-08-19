@@ -90,11 +90,12 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_pooling(dimensions))
                 elif kind == 'view':
-                    assert len(dimensions)>1
+                    assert len(dimensions) > 1
                     assert weight_list[n] == None
                     assert np.product(
                         input_dimensions[-1*dimensions[0]:]) == np.product(dimensions[1:])
-                    input_dimensions =input_dimensions[-1*dimensions[0]:]+ dimensions[1:]
+                    input_dimensions = input_dimensions[-1 *
+                                                        dimensions[0]:] + dimensions[1:]
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_view(dimensions))
                 else:
@@ -161,7 +162,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_fully_connected(model, n):
         def back_fully_connected(oldback, _):
-            return np.einsum('ij,...i->...j',model.weight_list[-n - 1],oldback)
+            return np.einsum('ij,...i->...j', model.weight_list[-n - 1], oldback)
             """
             newback = np.zeros(
                 tuple([np.shape(model.weight_list[-n - 1])[1]] + list(np.shape(oldback)[1:])))
@@ -177,13 +178,10 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_derivative_fully_connected(model, n):
         def derivative_fully_connected(oldback, propagation_values):
-            derivative = np.zeros(
-                np.shape(model.weight_list[-n - 1]) + np.shape(oldback)[1:])
-            for i, _ in np.ndenumerate(derivative):
-                derivative[i] = oldback[(i[0],) + i[2:]] * \
-                    propagation_values[i[1]]
-            #print('here', np.shape(derivative))
-            return derivative
+            # '...i,...^^^j->...^^^ji'
+            example_cost_j_index = list(range(1, len(np.shape(oldback))+1))
+            example_index = list(range(1, len(np.shape(propagation_value))))
+            return np.einsum(propagation_value, example_index + [0], oldback, example_cost_j_index, example_cost_j_index + [0])
         return derivative_fully_connected
 
     def generator_apply_filter(model, n):
@@ -192,14 +190,15 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return apply_filter
 
     def generator_back_filter(model, n):
-        weight=model.weight_list[-n - 1]
-        s_w=np.shape(weight)
+        weight = model.weight_list[-n - 1]
+        s_w = np.shape(weight)
+
         def back_filter(oldback, _):
             s_old = np.array(np.shape(oldback))
             s_old[-2:] += [2*(s_w[1]-1), 2*(s_w[2]-1)]
             bigold = np.zeros(s_old)
             bigold[..., s_w[1]-1:-(s_w[1]-1),
-                s_w[2]-1:-(s_w[2]-1)] = oldback
+                   s_w[2]-1:-(s_w[2]-1)] = oldback
             r = []
             for i in range(s_w[3]):
                 r.append(convolve(bigold, np.reshape(
@@ -248,27 +247,26 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_pooling(dimensions):
         def back_pooling(oldback, propagation_value):
-            newback = np.zeros(
-                np.shape(propagation_value) + np.shape(oldback)[3:])
-            for i, _ in np.ndenumerate(newback):
-                sli = propagation_value[i[0] // dimensions[0] * dimensions[0]:i[0] // dimensions[0] * dimensions[0] + dimensions[0], i[1] // dimensions[1] * dimensions[1]:i[1] // dimensions[1] * dimensions[1] + dimensions[1],
-                                        i[2] // dimensions[2] * dimensions[2]:i[2] // dimensions[2] * dimensions[2] + dimensions[2]]
-                newback[i] = oldback[(i[0] // dimensions[0], i[1] // dimensions[1], i[2] // dimensions[2]) + i[3:]] * (
-                    (i[0] % dimensions[0], i[1] % dimensions[1], i[2] % dimensions[2]) == np.where(sli == np.max(sli)))
-            return newback
+            s = np.shape(propagation_value)
+            os = len(np.shape(oldback))
+            sli_pro = np.reshape(propagation_value, s[:-3]+(s[-3]//dimensions[0], dimensions[0],
+                                                            s[-2]//dimensions[1], dimensions[1],
+                                                            s[-1]//dimensions[2], dimensions[2]))
+            max_sli = np.einsum('...ijklmn->jln...ikm',
+                                sli_pro) == np.max(sli_pro, axis=(-5, -3, -1))
+            return np.reshape(np.einsum(oldback, list(range(os)), max_sli, [os, os+1, os+2]+list(range(len(s)-3))+[os-3, os-2, os-1], list(range(os-3))+[os-3, os, os-2, os+1, os-1, os+2]), np.shape(oldback)[:-3]+s[-3:])
         return back_pooling
 
-    def generator_apply_view(dimension):
+    def generator_apply_view(dimensions):
+        # first dim is the number of indices that need to be reshaped
         def apply_view(inp):
-            return np.reshape(inp,np.shape(inp)[:-1*dimension[0]]+dimension[1:])
+            return np.reshape(inp, np.shape(inp)[:-1*dimensions[0]]+dimensions[1:])
         return apply_view
 
     def generator_back_view(dimensions):
         def back_view(oldback, propagation_value):
-            newback = np.reshape(oldback, np.shape(
-                propagation_value) + np.shape(oldback)[len(dimensions):])
-            #print('asdfasd', np.shape(oldback), np.shape(propagation_value), np.shape(newback))
-            #print(np.shape(newback), np.shape(oldback), np.shape(propagation_value))
+            newback = np.reshape(oldback, np.shape(oldback)[
+                :-len(dimensions)+1]+np.shape(propagation_value)[-dimensions[0]:])
             return newback
         return back_view
 
