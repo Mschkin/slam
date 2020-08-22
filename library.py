@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from copy import deepcopy
+from compile2 import derivative_filter_c_wrapper
 
 
 def conv(f, I):
@@ -207,14 +208,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return back_filter
 
     def generator_derivative_filter(model, n):
-        def derivative_filter(oldback, propagation_value):
-            derivative = np.zeros(
-                np.shape(model.weight_list[-n - 1]) + np.shape(oldback)[3:])
-            for i, _ in np.ndenumerate(derivative):
-                derivative[i] = sum([oldback[(i[0], m1, m2) + i[4:]] * propagation_value[i[3], i[1] + m1, i[2] + m2]
-                                     for m1 in range(np.shape(oldback)[1]) for m2 in range(np.shape(oldback)[2])])
-            return derivative
-        return derivative_filter
+        return derivative_filter_c_wrapper
 
     def generator_apply_sigmoid():
         def apply_sigmoid(inp):
@@ -335,20 +329,18 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
     return np.einsum('ijkmn,mn->ijk', dintered_dstraight, dV_dintrest)
 
 
-def numericdiff(f, inpt, index):
+def numericdiff(f, input_list, index):
     # get it running for quaternions
-    r = f(*inpt)
+    f0 = f(*input_list)
     h = 1 / 10**7
-    der = []
-    for inputnumber, inp in enumerate(inpt):
-        if inputnumber != index:
-            continue
-        ten = np.zeros(tuple(list(np.shape(inp)) +
-                             list(np.shape(r))), dtype=np.double)
-        for s, _ in np.ndenumerate(inp):
-            n = deepcopy(inp) * 1.0
-            n[s] += h
-            ten[s] = (
-                f(*(inpt[:inputnumber] + [n] + inpt[inputnumber + 1:])) - r) / h
-        der.append(ten)
-    return der
+    derivant = input_list[index]
+    derivative = np.zeros(np.shape(f0) +
+                          np.shape(derivant), dtype=np.double)
+    for s, _ in np.ndenumerate(derivant):
+        derivant_h = deepcopy(derivant) * 1.0
+        derivant_h[s] += h
+        res = (f(*(input_list[:index] + [derivant_h] +
+                   input_list[index + 1:])) - f0) / h
+        for i, _ in np.ndenumerate(f0):
+            derivative[i + s] = res[i]
+    return derivative

@@ -58,14 +58,19 @@ def derivative_filter(oldback, propagation_value, weigths):
     return derivative
 
 
-def new_derivative(oldback, propagation_value, model, n):
-    convolve(oldback, propagation_value, mode='valid')
+def new_derivative(oldback, propagation_value, weigths):
+    example_indeces = len(np.shape(propagation_value))-3
+    derivative = np.zeros(np.shape(oldback)[:-3]+np.shape(weights))
+    for i, _ in np.ndenumerate(derivative):
+        derivative[i] = sum([oldback[i[:-4]+(i[-4], m1, m2)]*propagation_value[i[:example_indeces]+(i[-1], i[-3]+m1, i[-2]+m2)]
+                             for m1 in range(np.shape(oldback)[-2]) for m2 in range(np.shape(oldback)[-1])])
+    return derivative
 
 
-oldback = np.random.rand(2, 4, 4, 8)
-propagation_value = np.random.rand(5, 6, 6)
-weights = np.random.rand(2, 3, 3, 5)
-r = derivative_filter(oldback, propagation_value, weights)
-b = derivative_filter_c_wrapper(propagation_value,oldback,weights)
-print(np.shape(r),np.shape(b))
-print(np.allclose(r, b))
+oldback = np.array([np.reshape(np.eye(75), (3, 5, 5, 3, 5, 5)),np.reshape(np.eye(75), (3, 5, 5, 3, 5, 5))])
+propagation_value = np.random.rand(2,4, 7, 7)
+weights = np.random.rand(3, 3, 3, 4)
+b = derivative_filter_c_wrapper(propagation_value, oldback, weights)
+x = new_derivative(oldback, propagation_value, weights)
+r = numericdiff(apply_filter, [propagation_value, weights], 1)
+print(np.allclose(x, b, r))
