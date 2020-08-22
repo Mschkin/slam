@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from copy import deepcopy
-from compile2 import derivative_filter_c_wrapper
+from cffi import FFI
 
 
 def conv(f, I):
@@ -208,6 +208,22 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return back_filter
 
     def generator_derivative_filter(model, n):
+        weights=model.weight_list[-n-1]
+        def derivative_filter_c_wrapper(propagtion_value, oldback):
+            ffi = FFI()
+            propagtion_value_p = ffi.cast(
+                "double*", propagtion_value.__array_interface__['data'][0])
+            oldback_p = ffi.cast("double*", oldback.__array_interface__['data'][0])
+            ie=np.prod(np.shape(propagtion_value)[:-3])
+            ic=np.prod(np.shape(oldback)[:-3])//ie
+            sizes = np.array((ie,ic)+np.shape(weights)+(np.shape(propagtion_value)[-2]-np.shape(weights)[1]+1, np.shape(propagtion_value)[-1]-np.shape(weights)[2]+1), dtype=np.uintp)
+            sizes_p = ffi.cast("size_t*", sizes.__array_interface__['data'][0])
+            derivative = np.zeros(
+                    np.shape(oldback)[:-3]+np.shape(weights))
+            derivative_p = ffi.cast(
+                "double*", derivative.__array_interface__['data'][0])
+            derivative_filter_c(oldback_p, propagtion_value_p, derivative_p, sizes_p)
+            return derivative
         return derivative_filter_c_wrapper
 
     def generator_apply_sigmoid():

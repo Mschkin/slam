@@ -6,33 +6,36 @@ import quaternion
 import matplotlib.pyplot as plt
 import cv2
 import time
-ffi = FFI()
 
-c_header = """void sparse_invert(double *mat, double *v1, double *v2);
+
+if __name__ == "__main__":
+    ffi = FFI()
+
+    c_header = """void sparse_invert(double *mat, double *v1, double *v2);
             double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                           double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
+                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
             void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
             double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                     double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
-                     void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase);
+                        double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
+                        void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase);
             void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight);"""
-ffi.cdef(c_header)
-f = open('geometry2.h', 'w')
-f.write(c_header)
-f.close()
-c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, size_t *sizes);"""
-ffi.cdef(c_header)
-f = open('filter.h', 'w')
-f.write(c_header)
-f.close()
-ffi.set_source("_geometry2",  # name of the output C extension
-               '''#include "geometry2.h"
-                  #include "filter.h"''',
-               sources=['geometry2.c', 'filter.c']
-               # ,extra_compile_args=["-funroll-loops"]
-               # ,extra_compile_args=["-pg"]
-               )
-if __name__ == "__main__":
+    ffi.cdef(c_header)
+    f = open('geometry2.h', 'w')
+    f.write(c_header)
+    f.close()
+    c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, size_t *sizes);"""
+    ffi.cdef(c_header)
+    f = open('filter.h', 'w')
+    f.write(c_header)
+    f.close()
+    ffi.set_source("_geometry2",  # name of the output C extension
+                '''#include "geometry2.h"
+                    #include "filter.h"''',
+                sources=['geometry2.c', 'filter.c']
+                # ,extra_compile_args=["-funroll-loops"]
+                # ,extra_compile_args=["-pg"]
+                )
+
     ffi.compile(verbose=True)
 
 
@@ -69,22 +72,6 @@ sparse_invert(matp, v1p, v2p)
 
 """
 
-
-def derivative_filter_c_wrapper(propagtion_value, oldback, weigths):
-    propagtion_value_p = ffi.cast(
-        "double*", propagtion_value.__array_interface__['data'][0])
-    print('ob:',oldback[1,0,0,0])
-    oldback_p = ffi.cast("double*", oldback.__array_interface__['data'][0])
-    sizes = np.shape(weigths)+(oldback[0, 0, 0].size, np.shape(propagtion_value)[
-        1]-np.shape(weigths)[1]+1, np.shape(propagtion_value)[2]-np.shape(weigths)[2]+1)
-    sizes = np.array(sizes, dtype=np.uintp)
-    sizes_p = ffi.cast("size_t*", sizes.__array_interface__['data'][0])
-    derivative = np.zeros(
-        np.shape(weigths) + np.shape(oldback)[3:])
-    derivative_p = ffi.cast(
-        "double*", derivative.__array_interface__['data'][0])
-    derivative_filter_c(oldback_p, propagtion_value_p, derivative_p, sizes_p)
-    return derivative
 
 
 def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
