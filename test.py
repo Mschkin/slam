@@ -6,8 +6,25 @@ import cProfile
 from scipy.signal import convolve
 from library import expit, numericdiff
 from skimage.measure import block_reduce
-from compile2 import derivative_filter_c_wrapper
+from _geometry2.lib import derivative_filter_c
+from cffi import FFI
 
+
+def derivative_filter_c_wrapper(propagtion_value, oldback,weights):
+    ffi = FFI()
+    propagtion_value_p = ffi.cast(
+        "double*", propagtion_value.__array_interface__['data'][0])
+    oldback_p = ffi.cast("double*", oldback.__array_interface__['data'][0])
+    ie=np.prod(np.shape(propagtion_value)[:-3])
+    ic=np.prod(np.shape(oldback)[:-3])//ie
+    sizes = np.array((ie,ic)+np.shape(weights)+(np.shape(propagtion_value)[-2]-np.shape(weights)[1]+1, np.shape(propagtion_value)[-1]-np.shape(weights)[2]+1), dtype=np.uintp)
+    sizes_p = ffi.cast("size_t*", sizes.__array_interface__['data'][0])
+    derivative = np.zeros(
+            np.shape(oldback)[:-3]+np.shape(weights))
+    derivative_p = ffi.cast(
+        "double*", derivative.__array_interface__['data'][0])
+    derivative_filter_c(oldback_p, propagtion_value_p, derivative_p, sizes_p)
+    return derivative
 
 def conv(f, I):
     # I: farbe unten rechts
@@ -70,7 +87,7 @@ def new_derivative(oldback, propagation_value, weigths):
 oldback = np.array([np.reshape(np.eye(75), (3, 5, 5, 3, 5, 5)),np.reshape(np.eye(75), (3, 5, 5, 3, 5, 5))])
 propagation_value = np.random.rand(2,4, 7, 7)
 weights = np.random.rand(3, 3, 3, 4)
-b = derivative_filter_c_wrapper(propagation_value, oldback, weights)
+b = derivative_filter_c_wrapper(propagation_value, oldback,weights)
 x = new_derivative(oldback, propagation_value, weights)
 r = numericdiff(apply_filter, [propagation_value, weights], 1)
 print(np.allclose(x, b, r))

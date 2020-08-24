@@ -43,7 +43,7 @@ from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from _geometry2.lib import sparse_invert
-from _geometry2.lib import derivative_filter_c
+
 
 """
 mat = np.zeros((20, 20, 20, 20))

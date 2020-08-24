@@ -6,6 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from cffi import FFI
+from _geometry2.lib import derivative_filter_c
 
 
 def conv(f, I):
@@ -164,17 +165,6 @@ def modelbuilder(tuple_list, input_dimension_numbers):
     def generator_back_fully_connected(model, n):
         def back_fully_connected(oldback, _):
             return np.einsum('ij,...i->...j', model.weight_list[-n - 1], oldback)
-            """
-            newback = np.zeros(
-                tuple([np.shape(model.weight_list[-n - 1])[1]] + list(np.shape(oldback)[1:])))
-            for i, _ in np.ndenumerate(newback):
-                #print(model.weight_list[-n - 1])
-                # print(np.shape(oldback))
-                newback[i] = sum([oldback[(a,) + i[1:]] * model.weight_list[-n - 1][a, i[0]]
-                                  for a in range(np.shape(model.weight_list[-n - 1])[0])])
-            # print(np.shape(newback))
-            return newback
-            """
         return back_fully_connected
 
     def generator_derivative_fully_connected(model, n):
