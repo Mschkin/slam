@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-
 /*
 def new_derivative(oldback, propagation_value, weigths):
     example_indeces = len(np.shape(propagation_value))-3
@@ -12,7 +11,7 @@ def new_derivative(oldback, propagation_value, weigths):
                              for m1 in range(np.shape(oldback)[-2]) for m2 in range(np.shape(oldback)[-1])])
     return derivative
 */
-void derivative_filter_c(double *oldback, double *propagation_value, double *derivative, size_t *sizes)
+void derivative_filter_c(double *oldback, double *propagation_value, double *derivative, int *sizes)
 {
     //sizes=[ie,ic,i0,i1,i2,i3,m1,m2]
 #define derivative(ie, ic, i0, i1, i2, i3) derivative[(ie)*sizes[1] * sizes[2] * sizes[3] * sizes[4] * sizes[5] + (ic)*sizes[2] * sizes[3] * sizes[4] * sizes[5] + (i0)*sizes[5] * sizes[3] * sizes[4] + (i1)*sizes[5] * sizes[4] + (i2)*sizes[5] + (i3)]
@@ -34,7 +33,7 @@ void derivative_filter_c(double *oldback, double *propagation_value, double *der
                             {
                                 for (int m2 = 0; m2 < sizes[7]; m2++)
                                 {
-                                    derivative(ie,ic,i0, i1, i2, i3) += oldback(ie,ic,i0, m1, m2) * propagation_value(ie,i3, i1 + m1, i2 + m2);
+                                    derivative(ie, ic, i0, i1, i2, i3) += oldback(ie, ic, i0, m1, m2) * propagation_value(ie, i3, i1 + m1, i2 + m2);
                                 }
                             }
                         }

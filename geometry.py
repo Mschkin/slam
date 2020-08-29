@@ -4,10 +4,10 @@ import random
 from copy import deepcopy
 import cProfile
 from sympy import LeviCivita
-import time
 import matplotlib.pyplot as plt
 # todo:
 # fyjkihg67uio87ygh
+# consider bias in fully connected layer & filter
 # boundaries of correct convergence, 0.2 seems still to work
 # we used a distance of off_diagonal_number to boundaries as strart of phasespaceview, to bias against points on boundary, because they could lie outside the other image
 # combine several pictures to one map
@@ -15,25 +15,12 @@ import matplotlib.pyplot as plt
 # check if double or float is faster
 # check why there is an error for too big off diagonal numbers in geomerty2.c
 #
-# 
-
+#
 
 
 # random.seed(1267)
 
 
-class timer:
-    lastcall = 0
-
-    def __init__(self):
-        self.lastcall = time.perf_counter()
-
-    def tick(self):
-        call = time.perf_counter()
-        diff = call - self.lastcall
-        self.lastcall = call
-        print(diff)
-        return diff
 
 
 def init_BT(zahl):
@@ -493,6 +480,7 @@ def tester():
     print("true bt\n", bt_true)
     #a = numericdiff(wrap_find_BT_from_BT, [bt_true, xp, yp, weights], 3)
     # print(np.max(b-a[0]))
+
 
 """
 if __name__ == "__main__":

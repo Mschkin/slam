@@ -1,4 +1,8 @@
-from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
+#from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
+from _geometry2.lib import fast_findanalytic_R_c
+from _geometry2.lib import get_hessian_parts_R_c
+from _geometry2.lib import dVdg_function_c
+from _geometry2.lib import sparse_invert
 import numpy as np
 from cffi import FFI
 import copy
@@ -23,26 +27,20 @@ if __name__ == "__main__":
     f = open('geometry2.h', 'w')
     f.write(c_header)
     f.close()
-    c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, size_t *sizes);"""
+    c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, int *sizes);"""
     ffi.cdef(c_header)
     f = open('filter.h', 'w')
     f.write(c_header)
     f.close()
     ffi.set_source("_geometry2",  # name of the output C extension
-                '''#include "geometry2.h"
+                   '''#include "geometry2.h"
                     #include "filter.h"''',
-                sources=['geometry2.c', 'filter.c']
-                # ,extra_compile_args=["-funroll-loops"]
-                # ,extra_compile_args=["-pg"]
-                )
+                   sources=['geometry2.c', 'filter.c']
+                   # ,extra_compile_args=["-funroll-loops"]
+                   # ,extra_compile_args=["-pg"]
+                   )
 
     ffi.compile(verbose=True)
-
-
-from _geometry2.lib import fast_findanalytic_R_c
-from _geometry2.lib import get_hessian_parts_R_c
-from _geometry2.lib import dVdg_function_c
-from _geometry2.lib import sparse_invert
 
 
 """
@@ -71,7 +69,6 @@ sparse_invert(matp, v1p, v2p)
 
 
 """
-
 
 
 def get_hessian_parts_wrapper(xp, yp, const_length, array_length):

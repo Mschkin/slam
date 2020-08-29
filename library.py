@@ -6,6 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from cffi import FFI
+import time
 from _geometry2.lib import derivative_filter_c
 
 
@@ -44,7 +45,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
             #self.input_dimensions = input_dimensions
             self.back_list = []
             self.derivative_functions = []
-            self.propagation_values = []
+            self.propagation_value = []
             self.derivative_values = []
             self.learing_rate = .3
             for n, (kind, dimensions) in enumerate(tuple_list):
@@ -127,11 +128,11 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.derivative_functions.append(None)
 
         def __call__(self, inp):
-            self.propagation_values = [inp]
+            self.propagation_value = [inp]
             for func in self.call_list:
-                self.propagation_values.append(
-                    func(self.propagation_values[-1]))
-            return self.propagation_values[-1]
+                self.propagation_value.append(
+                    func(self.propagation_value[-1]))
+            return self.propagation_value[-1]
 
         def calculate_derivatives(self, inp, first_old_back):
             self.derivative_values = []
@@ -140,13 +141,12 @@ def modelbuilder(tuple_list, input_dimension_numbers):
             # print(self.derivative_functions)
             for n, func in enumerate(self.back_list):
                 if self.derivative_functions[n] != None:
-                    print('derivative', n, func.__name__)
                     self.derivative_values.append(
-                        self.derivative_functions[n](back_progation_values[-1], self.propagation_values[-n - 2]))
+                        self.derivative_functions[n](back_progation_values[-1], self.propagation_value[-n - 2]))
                 else:
                     self.derivative_values.append(None)
                 back_progation_values.append(
-                    func(back_progation_values[-1], self.propagation_values[-n - 2]))
+                    func(back_progation_values[-1], self.propagation_value[-n - 2]))
             self.derivative_values = self.derivative_values[::-1]
             return back_progation_values
 
@@ -168,7 +168,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return back_fully_connected
 
     def generator_derivative_fully_connected(model, n):
-        def derivative_fully_connected(oldback, propagation_values):
+        def derivative_fully_connected(oldback, propagation_value):
             # '...i,...^^^j->...^^^ji'
             example_cost_j_index = list(range(1, len(np.shape(oldback))+1))
             example_index = list(range(1, len(np.shape(propagation_value))))
@@ -198,21 +198,25 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         return back_filter
 
     def generator_derivative_filter(model, n):
-        weights=model.weight_list[-n-1]
-        def derivative_filter_c_wrapper(propagtion_value, oldback):
+        weights = model.weight_list[-n-1]
+
+        def derivative_filter_c_wrapper(propagation_value, oldback):
             ffi = FFI()
-            propagtion_value_p = ffi.cast(
-                "double*", propagtion_value.__array_interface__['data'][0])
-            oldback_p = ffi.cast("double*", oldback.__array_interface__['data'][0])
-            ie=np.prod(np.shape(propagtion_value)[:-3])
-            ic=np.prod(np.shape(oldback)[:-3])//ie
-            sizes = np.array((ie,ic)+np.shape(weights)+(np.shape(propagtion_value)[-2]-np.shape(weights)[1]+1, np.shape(propagtion_value)[-1]-np.shape(weights)[2]+1), dtype=np.uintp)
-            sizes_p = ffi.cast("size_t*", sizes.__array_interface__['data'][0])
+            propagation_value_p = ffi.cast(
+                "double*", propagation_value.__array_interface__['data'][0])
+            oldback_p = ffi.cast(
+                "double*", oldback.__array_interface__['data'][0])
+            ie = np.prod(np.shape(propagation_value)[:-3])
+            ic = np.prod(np.shape(oldback)[:-3])//ie
+            sizes = np.array((ie, ic)+np.shape(weights)+(np.shape(propagation_value)[-2]-np.shape(
+                weights)[1]+1, np.shape(propagation_value)[-1]-np.shape(weights)[2]+1), dtype=np.int)
+            sizes_p = ffi.cast("int*", sizes.__array_interface__['data'][0])
             derivative = np.zeros(
-                    np.shape(oldback)[:-3]+np.shape(weights))
+                np.shape(oldback)[:-3]+np.shape(weights))
             derivative_p = ffi.cast(
                 "double*", derivative.__array_interface__['data'][0])
-            derivative_filter_c(oldback_p, propagtion_value_p, derivative_p, sizes_p)
+            derivative_filter_c(
+                oldback_p, propagation_value_p, derivative_p, sizes_p)
             return derivative
         return derivative_filter_c_wrapper
 
@@ -335,14 +339,17 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
     return np.einsum('ijkmn,mn->ijk', dintered_dstraight, dV_dintrest)
 
 
-def numericdiff(f, input_list, index):
+def numericdiff(f, input_list, index):  # , tim):
     # get it running for quaternions
     f0 = f(*input_list)
     h = 1 / 10**7
     derivant = input_list[index]
     derivative = np.zeros(np.shape(f0) +
                           np.shape(derivant), dtype=np.double)
+
     for s, _ in np.ndenumerate(derivant):
+        # if s[-1] == 0:
+        #    tim.tick()
         derivant_h = deepcopy(derivant) * 1.0
         derivant_h[s] += h
         res = (f(*(input_list[:index] + [derivant_h] +
@@ -350,3 +357,17 @@ def numericdiff(f, input_list, index):
         for i, _ in np.ndenumerate(f0):
             derivative[i + s] = res[i]
     return derivative
+
+
+class timer:
+    lastcall = 0
+
+    def __init__(self):
+        self.lastcall = time.perf_counter()
+
+    def tick(self):
+        call = time.perf_counter()
+        diff = call - self.lastcall
+        self.lastcall = call
+        print(diff)
+        return diff

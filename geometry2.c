@@ -538,7 +538,6 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
                 start_values[i, j] = 1
     tim.tick()
     pure_phase = np.reshape(start_values, (N * N))*/
-    double test = 0;
 #define pure_phase(i, j) pure_phase[(i)*sqrtlength + (j)]
     for (int i = 0; i < sqrtlength; i++)
     {
