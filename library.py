@@ -227,6 +227,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_sigmoid():
         def back_sigmoid(oldback, propagation_value):
+            #np.einsum('...^^^rrr,...rrr,...rrr->...^^^rrr')
             return oldback*expit(propagation_value)*(1-expit(propagation_value))
         return back_sigmoid
 

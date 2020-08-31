@@ -1,8 +1,4 @@
 #from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
-from _geometry2.lib import fast_findanalytic_R_c
-from _geometry2.lib import get_hessian_parts_R_c
-from _geometry2.lib import dVdg_function_c
-from _geometry2.lib import sparse_invert
 import numpy as np
 from cffi import FFI
 import copy
@@ -42,7 +38,10 @@ if __name__ == "__main__":
 
     ffi.compile(verbose=True)
 
-
+from _geometry2.lib import fast_findanalytic_R_c
+from _geometry2.lib import get_hessian_parts_R_c
+from _geometry2.lib import dVdg_function_c
+from _geometry2.lib import sparse_invert
 """
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
