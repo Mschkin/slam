@@ -22,39 +22,41 @@ def conv(f, I):
                              [:, :, 0] for i in range(len(f))])
     # si=np.shape(I)
     # sf=np.shape(f)
-    #c = np.array([np.random.rand(si[1]-sf[1]+1,si[2]-sf[2]+1) for i in range(len(f))])
+    # c = np.array([np.random.rand(si[1]-sf[1]+1,si[2]-sf[2]+1) for i in range(len(f))])
     # print(si,sf)
     # c: filterzahl unten rechts
     return c
 
 
-def modelbuilder(tuple_list, input_dimension_numbers):
+def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_indeces):
     # list of tuples which contains the names and the dimensions if necessary
     # [('name',dimensions)]
     # implementet: filter, fully_connected,sigmoid, softmax,pooling,view
     # example:
     # modelclass = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (3, 36)), ('sigmoid', None)], (3, 30, 30))
-    #model = modelclass([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
+    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (3, 36)), ('sigmoid', None)], (2,3, 30, 30),(2,),(3,)])
+    # model = modelclass([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
     class model_class:
         def __init__(self, weight_list):
             input_dimensions = input_dimension_numbers
             assert len(weight_list) == len(tuple_list)
             self.weight_list = []
             self.call_list = []
-            #self.input_dimensions = input_dimensions
+            # self.input_dimensions = input_dimensions
             self.back_list = []
             self.derivative_functions = []
             self.propagation_value = []
             self.derivative_values = []
             self.learing_rate = .3
+            self.example_indices = example_indeces
+            self.cost_indices = cost_indeces
             for n, (kind, dimensions) in enumerate(tuple_list):
                 if kind == 'fully_connected':
                     if type(weight_list[n]) == type(None):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
                     else:
                         assert np.shape(weight_list[n]) == dimensions
-                    #assert len(input_dimensions) == 1
+                    # assert len(input_dimensions) == 1
                     assert np.shape(weight_list[n])[1] == input_dimensions[-1]
                     input_dimensions = input_dimensions[:-1] + \
                         (np.shape(weight_list[n])[0],)
@@ -66,7 +68,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
                     else:
                         assert np.shape(weight_list[n]) == dimensions
-                    #assert len(input_dimensions) == 3
+                    # assert len(input_dimensions) == 3
                     assert np.shape(weight_list[n])[3] == input_dimensions[-3]
                     assert np.shape(weight_list[n])[1] <= input_dimensions[-2]
                     assert np.shape(weight_list[n])[2] <= input_dimensions[-1]
@@ -128,26 +130,31 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                     self.derivative_functions.append(None)
 
         def __call__(self, inp):
+            inp = np.reshape(inp, (np.prod(self.example_indices),) +
+                             np.shape(inp)[len(self.example_indices):])
             self.propagation_value = [inp]
             for func in self.call_list:
                 self.propagation_value.append(
                     func(self.propagation_value[-1]))
-            return self.propagation_value[-1]
+            return np.reshape(self.propagation_value[-1], self.example_indices+np.shape(self.propagation_value[-1])[1:])
 
         def calculate_derivatives(self, inp, first_old_back):
             self.derivative_values = []
             back_progation_values = [first_old_back]
-            # print(back_progation_values[-1])
-            # print(self.derivative_functions)
+            print(len(self.back_list))
             for n, func in enumerate(self.back_list):
+                print(n)
                 if self.derivative_functions[n] != None:
                     self.derivative_values.append(
                         self.derivative_functions[n](back_progation_values[-1], self.propagation_value[-n - 2]))
                 else:
                     self.derivative_values.append(None)
+                print(n)
                 back_progation_values.append(
                     func(back_progation_values[-1], self.propagation_value[-n - 2]))
+                print(n)
             self.derivative_values = self.derivative_values[::-1]
+            print('def calculatet')
             return back_progation_values
 
         def update_weights(self):
@@ -158,7 +165,6 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):
-            # return model.weight_list[n]@inp
             return np.einsum('...i,ji->...j', inp, model.weight_list[n])
         return apply_fully_connected
 
@@ -169,10 +175,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_derivative_fully_connected(model, n):
         def derivative_fully_connected(oldback, propagation_value):
-            # '...i,...^^^j->...^^^ji'
-            example_cost_j_index = list(range(1, len(np.shape(oldback))+1))
-            example_index = list(range(1, len(np.shape(propagation_value))))
-            return np.einsum(propagation_value, example_index + [0], oldback, example_cost_j_index, example_cost_j_index + [0])
+            return np.einsum('ei,ecj->ecji', propagation_value, oldback)
         return derivative_fully_connected
 
     def generator_apply_filter(model, n):
@@ -185,6 +188,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         s_w = np.shape(weight)
 
         def back_filter(oldback, _):
+            print('here')
             s_old = np.array(np.shape(oldback))
             s_old[-2:] += [2*(s_w[1]-1), 2*(s_w[2]-1)]
             bigold = np.zeros(s_old)
@@ -192,8 +196,9 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                    s_w[2]-1:-(s_w[2]-1)] = oldback
             r = []
             for i in range(s_w[3]):
-                r.append(convolve(bigold, np.reshape(
-                    weight[::-1, :, :, i], (1,)*(len(s_old)-3)+s_w[:3]), mode='valid'))
+                r.append(
+                    convolve(bigold, [[weight[::-1, :, :, i]]], mode='valid'))
+            print('here')
             return np.concatenate(tuple(r), axis=-3)
         return back_filter
 
@@ -201,13 +206,14 @@ def modelbuilder(tuple_list, input_dimension_numbers):
         weights = model.weight_list[-n-1]
 
         def derivative_filter_c_wrapper(propagation_value, oldback):
+            print('c')
             ffi = FFI()
             propagation_value_p = ffi.cast(
                 "double*", propagation_value.__array_interface__['data'][0])
             oldback_p = ffi.cast(
                 "double*", oldback.__array_interface__['data'][0])
-            ie = np.prod(np.shape(propagation_value)[:-3])
-            ic = np.prod(np.shape(oldback)[:-3])//ie
+            ie = np.shape(propagation_value)[0]
+            ic = np.shape(oldback)[1]
             sizes = np.array((ie, ic)+np.shape(weights)+(np.shape(propagation_value)[-2]-np.shape(
                 weights)[1]+1, np.shape(propagation_value)[-1]-np.shape(weights)[2]+1), dtype=np.int)
             sizes_p = ffi.cast("int*", sizes.__array_interface__['data'][0])
@@ -215,8 +221,10 @@ def modelbuilder(tuple_list, input_dimension_numbers):
                 np.shape(oldback)[:-3]+np.shape(weights))
             derivative_p = ffi.cast(
                 "double*", derivative.__array_interface__['data'][0])
+            print('c')
             derivative_filter_c(
                 oldback_p, propagation_value_p, derivative_p, sizes_p)
+            print('c')
             return derivative
         return derivative_filter_c_wrapper
 
@@ -227,8 +235,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_sigmoid():
         def back_sigmoid(oldback, propagation_value):
-            #np.einsum('...^^^rrr,...rrr,...rrr->...^^^rrr')
-            return oldback*expit(propagation_value)*(1-expit(propagation_value))
+            return np.einsum('ec...,e...,e...->ec...', oldback, expit(propagation_value), (1-expit(propagation_value)))
         return back_sigmoid
 
     def generator_apply_softmax():
@@ -238,7 +245,7 @@ def modelbuilder(tuple_list, input_dimension_numbers):
 
     def generator_back_softmax():
         def back_softmax(oldback, propagation_value):
-            return oldback*expit(propagation_value)
+            return np.einsum('ec...,e...->ec...', oldback, expit(propagation_value))
         return back_softmax
 
     def generator_apply_pooling(dimensions):
@@ -253,13 +260,12 @@ def modelbuilder(tuple_list, input_dimension_numbers):
     def generator_back_pooling(dimensions):
         def back_pooling(oldback, propagation_value):
             s = np.shape(propagation_value)
-            os = len(np.shape(oldback))
-            sli_pro = np.reshape(propagation_value, s[:-3]+(s[-3]//dimensions[0], dimensions[0],
-                                                            s[-2]//dimensions[1], dimensions[1],
-                                                            s[-1]//dimensions[2], dimensions[2]))
+            sli_pro = np.reshape(propagation_value, s[:1]+(s[1]//dimensions[0], dimensions[0],
+                                                          s[2]//dimensions[1], dimensions[1],
+                                                          s[3]//dimensions[2], dimensions[2]))
             max_sli = np.einsum('...ijklmn->jln...ikm',
                                 sli_pro) == np.max(sli_pro, axis=(-5, -3, -1))
-            return np.reshape(np.einsum(oldback, list(range(os)), max_sli, [os, os+1, os+2]+list(range(len(s)-3))+[os-3, os-2, os-1], list(range(os-3))+[os-3, os, os-2, os+1, os-1, os+2]), np.shape(oldback)[:-3]+s[-3:])
+            return np.reshape(np.einsum('ecikm,jlneikm->ecijklmn', oldback, max_sli), np.shape(oldback)[:2]+s[-3:])
         return back_pooling
 
     def generator_apply_view(dimensions):
