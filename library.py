@@ -141,20 +141,15 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
         def calculate_derivatives(self, inp, first_old_back):
             self.derivative_values = []
             back_progation_values = [first_old_back]
-            print(len(self.back_list))
             for n, func in enumerate(self.back_list):
-                print(n)
                 if self.derivative_functions[n] != None:
                     self.derivative_values.append(
                         self.derivative_functions[n](back_progation_values[-1], self.propagation_value[-n - 2]))
                 else:
                     self.derivative_values.append(None)
-                print(n)
                 back_progation_values.append(
                     func(back_progation_values[-1], self.propagation_value[-n - 2]))
-                print(n)
             self.derivative_values = self.derivative_values[::-1]
-            print('def calculatet')
             return back_progation_values
 
         def update_weights(self):
@@ -175,7 +170,8 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
 
     def generator_derivative_fully_connected(model, n):
         def derivative_fully_connected(oldback, propagation_value):
-            return np.einsum('ei,ecj->ecji', propagation_value, oldback)
+            derivative_con=np.einsum('ei,ecj->ecji', propagation_value, oldback)
+            return np.reshape(derivative_con,model.example_indices+model.cost_indices+np.shape(derivative_con)[-2:])
         return derivative_fully_connected
 
     def generator_apply_filter(model, n):
@@ -188,7 +184,6 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
         s_w = np.shape(weight)
 
         def back_filter(oldback, _):
-            print('here')
             s_old = np.array(np.shape(oldback))
             s_old[-2:] += [2*(s_w[1]-1), 2*(s_w[2]-1)]
             bigold = np.zeros(s_old)
@@ -198,15 +193,13 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             for i in range(s_w[3]):
                 r.append(
                     convolve(bigold, [[weight[::-1, :, :, i]]], mode='valid'))
-            print('here')
             return np.concatenate(tuple(r), axis=-3)
         return back_filter
 
     def generator_derivative_filter(model, n):
         weights = model.weight_list[-n-1]
 
-        def derivative_filter_c_wrapper(propagation_value, oldback):
-            print('c')
+        def derivative_filter_c_wrapper(oldback,propagation_value):
             ffi = FFI()
             propagation_value_p = ffi.cast(
                 "double*", propagation_value.__array_interface__['data'][0])
@@ -215,16 +208,14 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             ie = np.shape(propagation_value)[0]
             ic = np.shape(oldback)[1]
             sizes = np.array((ie, ic)+np.shape(weights)+(np.shape(propagation_value)[-2]-np.shape(
-                weights)[1]+1, np.shape(propagation_value)[-1]-np.shape(weights)[2]+1), dtype=np.int)
+                weights)[1] + 1, np.shape(propagation_value)[-1] - np.shape(weights)[2] + 1), dtype=np.intc)
             sizes_p = ffi.cast("int*", sizes.__array_interface__['data'][0])
             derivative = np.zeros(
-                np.shape(oldback)[:-3]+np.shape(weights))
+                model.example_indices + model.cost_indices + np.shape(weights))
             derivative_p = ffi.cast(
                 "double*", derivative.__array_interface__['data'][0])
-            print('c')
             derivative_filter_c(
                 oldback_p, propagation_value_p, derivative_p, sizes_p)
-            print('c')
             return derivative
         return derivative_filter_c_wrapper
 
@@ -349,7 +340,7 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
 def numericdiff(f, input_list, index):  # , tim):
     # get it running for quaternions
     f0 = f(*input_list)
-    h = 1 / 10**7
+    h = 1 / 10**8
     derivant = input_list[index]
     derivative = np.zeros(np.shape(f0) +
                           np.shape(derivant), dtype=np.double)
