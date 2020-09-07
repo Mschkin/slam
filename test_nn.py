@@ -1,7 +1,8 @@
 import torch
 from library import modelbuilder, numericdiff, timer
 import numpy as np
-
+from compile2 import phase_space_view_wrapper
+from test_constants import *
 
 def torch_apply_net(inp, filt, con):
     inp = torch.from_numpy(inp)
@@ -50,7 +51,7 @@ def apply_compare():
     net = modelclass([filt, None, None, None, con, None])
     rs = net(inp)
     onw_der = net.calculate_derivatives(
-        inp, np.einsum('i,kl->ikl', np.ones(63), np.eye(3)))
+        inp)
     onw_der = np.reshape(onw_der[-1], (9, 7, 3, 3, 20, 20))
     filt = np.einsum('ijkl->iljk', filt)
     inp = np.reshape(inp, (63, 3, 20, 20))
@@ -61,4 +62,26 @@ def apply_compare():
 
 assert(apply_compare())
 
-
+def phase_space():
+    from library import phasespace_view
+    straight=np.random.rand(1,sqrtlength,sqrtlength,9)
+    python_pure,python_din_ds=phasespace_view(straight[0],off_diagonal_number)
+    pure_phase_c, din_ds_c = phase_space_view_wrapper(sqrtlength, const_length, off_diagonal_number, straight,(1,), test=True)
+    def cutter(i,j,k,py_big):
+        small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
+        if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
+            #find middle
+            m1,m2=i,j
+            #find size
+            size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
+            arr=py_big[m1-size//2:m1+size//2+1,m2-size//2:m2+size//2+1]
+            small[off_diagonal_number-size//2:off_diagonal_number+size//2+1,off_diagonal_number-size//2:off_diagonal_number+size//2+1]=arr
+        return small
+    small_py=np.zeros_like(din_ds_c[0])
+    for i in range(sqrtlength):
+        for j in range(sqrtlength):
+            for k in range(9):
+                small_py[i,j,k]=cutter(i,j,k,python_din_ds[i,j,k])
+    return np.allclose(pure_phase_c[0], python_pure) and  np.allclose(din_ds_c,small_py)
+   
+assert(phase_space())

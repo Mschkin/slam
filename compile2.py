@@ -9,39 +9,53 @@ import time
 
 
 if __name__ == "__main__":
-    ffi = FFI()
+    for i in range(2):
+        ffi = FFI()
+        c_header = """void sparse_invert(double *mat, double *v1, double *v2);
+                double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
+                                double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
+                void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
+                double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
+                            double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
+                            void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase,int example_indices);
+                void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight);"""
+        ffi.cdef(c_header)
+        f = open('geometry2.h', 'w')
+        f.write(c_header)
+        f.close()
+        c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, int *sizes);"""
+        ffi.cdef(c_header)
+        f = open('filter.h', 'w')
+        f.write(c_header)
+        f.close()
+        if i == 0:
+            from constants import *
+            libname="_geometry2"
+        elif i == 1:
+            from test_constants import *
+            libname="_geometry_test"
+        constants=f"""#define sqrtlength {sqrtlength}
+                    #define const_length sqrtlength *sqrtlength
+                    #define off_diagonal_number {off_diagonal_number}
+                    #define array_length const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+                    #define big_array_length const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)"""
+        f = open('constants.h', 'w')
+        f.write(constants)
+        f.close()
+        ffi.set_source(libname,  # name of the output C extension
+                    '''#include "geometry2.h"
+                        #include "filter.h"''',
+                    sources=[ 'filter.c','geometry2.c']
+                    # ,extra_compile_args=["-funroll-loops"]
+                    # ,extra_compile_args=["-pg"]
+                    )
 
-    c_header = """void sparse_invert(double *mat, double *v1, double *v2);
-            double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                            double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
-            void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
-            double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                        double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
-                        void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase);
-            void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight);"""
-    ffi.cdef(c_header)
-    f = open('geometry2.h', 'w')
-    f.write(c_header)
-    f.close()
-    c_header = """void derivative_filter_c(double *oldback, double *propagtion_value, double *derivative, int *sizes);"""
-    ffi.cdef(c_header)
-    f = open('filter.h', 'w')
-    f.write(c_header)
-    f.close()
-    ffi.set_source("_geometry2",  # name of the output C extension
-                   '''#include "geometry2.h"
-                    #include "filter.h"''',
-                   sources=['geometry2.c', 'filter.c']
-                   # ,extra_compile_args=["-funroll-loops"]
-                   # ,extra_compile_args=["-pg"]
-                   )
-
-    ffi.compile(verbose=True)
+        ffi.compile(verbose=True)
 
 from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
-from _geometry2.lib import sparse_invert
+from _geometry2.lib import sparse_invert,phase_space_view_c
 """
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
@@ -69,8 +83,24 @@ sparse_invert(matp, v1p, v2p)
 
 """
 
+def phase_space_view_wrapper(sqrtlength, const_length, off_diagonal_number, straight,example_indices, test=False):
+    ffi = FFI()
+    pure_phase_c=np.zeros(example_indices+(sqrtlength,sqrtlength))
+    pure_phase_p=ffi.cast("double*", pure_phase_c.__array_interface__['data'][0])
+    straight_c=copy.deepcopy(straight)
+    straight_p=ffi.cast("double*", straight_c.__array_interface__['data'][0])
+    di_ds_c=np.zeros(example_indices+(sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
+    di_ds_p = ffi.cast("double*", di_ds_c.__array_interface__['data'][0])
+    if not test:
+        from _geometry2.lib import phase_space_view_c
+    elif test:
+        from _geometry_test.lib import phase_space_view_c
+    phase_space_view_c(straight_p, di_ds_p, pure_phase_p,np.prod(example_indices))
+    return pure_phase_c,di_ds_c
+
 
 def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
+    ffi = FFI()
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
@@ -88,6 +118,7 @@ def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
 
 
 def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, const_length, array_length):
+    ffi = FFI()
     xp_c = copy.deepcopy(xp)
     yp_c = copy.deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])

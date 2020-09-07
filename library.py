@@ -138,8 +138,11 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
                     func(self.propagation_value[-1]))
             return np.reshape(self.propagation_value[-1], self.example_indices+np.shape(self.propagation_value[-1])[1:])
 
-        def calculate_derivatives(self, inp, first_old_back):
+        def calculate_derivatives(self, inp, first_old_back=None):
             self.derivative_values = []
+            if type(first_old_back) == type(None):
+                first_old_back = np.einsum('e,ck->eck', np.ones(np.prod(self.example_indices)), np.eye(np.prod(self.cost_indices)))
+                first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
             back_progation_values = [first_old_back]
             for n, func in enumerate(self.back_list):
                 if self.derivative_functions[n] != None:
@@ -156,7 +159,7 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             for i in range(len(self.weight_list)):
                 if not self.weight_list[i] == None:
                     self.weight_list[i] -= self.learing_rate * \
-                        self.derivative_values[i]
+                        np.sum(self.derivative_values[i], axis=tuple(range(len(self.example_indices + self.cost_indices))))
 
     def generator_apply_fully_connected(model, n):
         def apply_fully_connected(inp):

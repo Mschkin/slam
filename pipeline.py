@@ -10,17 +10,27 @@ from compile2 import timer
 from geometry import numericdiff
 import matplotlib.pyplot as plt
 from cffi import FFI
+import test_nn
+
+# put this in a constance file at some point
+sqrtlength = 99
+const_length = sqrtlength ** 2
+off_diagonal_number = 10
+array_length = const_length * \
+    (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+
+
 ffi=FFI()
 
 np.random.seed(6865)
 tim = timer()
 
 modelclass_fd = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (36,)), ('fully_connected', (9, 36)), ('sigmoid', None)], (3, 30, 30))
+    'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (3, 30, 30),(2,),(9,))
 modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, 226, 226))
+    'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, 226, 226),(2,),(4,101,101))
 modelclass_full = modelbuilder(
-    [('view', (36,)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3))
+    [('view', (36,)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3),(2,99,99),(9,))
 filter1 = np.random.rand(3, 6, 6, 3)
 filter2 = np.random.rand(3, 6, 6, 3)
 filter3 = np.random.rand(2, 5, 5, 3)
@@ -35,7 +45,7 @@ filter_describe = modelclass_convolve(
 full_finder = modelclass_full([None, fullyconneted, None])
 full_describe = modelclass_full([None, fullyconneted, None])
 compare_class = modelbuilder(
-    [('fully_connected', (1, 18)), ('sigmoid', None)], (18,))
+    [('fully_connected', (1, 18)), ('sigmoid', None)], (18,),((array_length//const_length)**2,))
 compare_net = compare_class([compare, None])
 
 
@@ -59,28 +69,34 @@ def splittimg(I):
 def pipeline(I1, I2):
     I1 = np.swapaxes(np.swapaxes(I1, 0, 2), 1, 2) / 255 - .5
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
+    inp=np.array([I1,I2])
+    flow_weights = filter_finder(inp)
+    parts = np.array([splittimg(i) for i in flow_weights])
+    parts = full_finder(parts)
+    c_pure_phase=np.zeros((sqrtlength,sqrtlength))
+    c_pure_phase_p=ffi.cast("double*", c_pure_phase.__array_interface__['data'][0])
+    c_straight=deepcopy(straight)
+    c_straight_p=ffi.cast("double*", c_straight.__array_interface__['data'][0])
+    c_di_ds=np.zeros((sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
+    c_di_ds_p=ffi.cast("double*", c_di_ds.__array_interface__['data'][0])
     tim.tick()
-    print(np.shape(I1))
-    sqrtlength = 99
-    const_length = sqrtlength ** 2
-    off_diagonal_number = 10
-    array_length = const_length * \
-        (off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+    phython_pure,python_din_ds=phasespace_view(straight,off_diagonal_number)
+    phase_space_view_c(c_straight_p,c_di_ds_p,c_pure_phase_p)
+
+
+
+
+
+
+
+
+
+
+
+
 
     tim.tick()
-    flow_weights1 = filter_finder(I1)
-    tim.tick()
-    flow_weights2 = filter_finder(I2)
-    tim.tick()
-    parts1 = splittimg(flow_weights1)
-    parts2 = splittimg(flow_weights1)
-    parts1 = np.array([[full_finder(parts1[i, j]) for i in range(99)]
-                       for j in range(99)])
-    parts2 = np.array([[full_finder(parts2[i, j]) for i in range(99)]
-                       for j in range(99)])
-    print('finder')
-    tim.tick()
-    interest1 = phasespace_view(parts1, off_diagonal_number,tim)
+    interest = [phasespace_view(parts1, off_diagonal_number,tim)
     tim.tick()
     interest2 = phasespace_view(parts2, off_diagonal_number,tim)
     tim.tick()
@@ -164,23 +180,6 @@ c_back_phase_space(c_di_ds_p, c_dV_din_p, c_dV_dstaight_p)
 #    return a
 #x=numericdiff(phasespace_view_wrapper,[straight],0)
 
-def cutter(i,j,k,py_big):
-    small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
-    if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
-        #find middle
-        m1,m2=i,j
-        #find size
-        size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
-        arr=py_big[m1-size//2:m1+size//2+1,m2-size//2:m2+size//2+1]
-        small[off_diagonal_number-size//2:off_diagonal_number+size//2+1,off_diagonal_number-size//2:off_diagonal_number+size//2+1]=arr
-    return small
-
-
-small_py=np.zeros_like(c_di_ds)
-for i in range(sqrtlength):
-    for j in range(sqrtlength):
-        for k in range(9):
-            small_py[i,j,k]=cutter(i,j,k,python_din_ds[i,j,k])
 
 print(np.allclose(phython_pure,c_pure_phase))
 print(np.allclose(small_py,c_di_ds))
