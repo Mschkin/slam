@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+
 /*
 def new_derivative(oldback, propagation_value, weigths):
     example_indeces = len(np.shape(propagation_value))-3
