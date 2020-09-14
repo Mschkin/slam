@@ -83,7 +83,13 @@ sparse_invert(matp, v1p, v2p)
 
 """
 
-def phase_space_view_wrapper(sqrtlength, const_length, off_diagonal_number, straight,example_indices, test=False):
+def phase_space_view_wrapper(straight, example_indices, test=False):
+    if test:
+        from test_constants import sqrtlength,off_diagonal_number
+        from _geometry_test.lib import phase_space_view_c
+    else:
+        from constants import sqrtlength,off_diagonal_number
+        from _geometry2.lib import phase_space_view_c
     ffi = FFI()
     pure_phase_c=np.zeros(example_indices+(sqrtlength,sqrtlength))
     pure_phase_p=ffi.cast("double*", pure_phase_c.__array_interface__['data'][0])
@@ -91,10 +97,6 @@ def phase_space_view_wrapper(sqrtlength, const_length, off_diagonal_number, stra
     straight_p=ffi.cast("double*", straight_c.__array_interface__['data'][0])
     di_ds_c=np.zeros(example_indices+(sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
     di_ds_p = ffi.cast("double*", di_ds_c.__array_interface__['data'][0])
-    if not test:
-        from _geometry2.lib import phase_space_view_c
-    elif test:
-        from _geometry_test.lib import phase_space_view_c
     phase_space_view_c(straight_p, di_ds_p, pure_phase_p,np.prod(example_indices))
     return pure_phase_c,di_ds_c
 

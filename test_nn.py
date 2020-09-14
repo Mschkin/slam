@@ -67,7 +67,7 @@ def phase_space():
     straight=np.random.rand(2,sqrtlength,sqrtlength,9)
     python_pure1, python_din_ds1 = phasespace_view(straight[0], off_diagonal_number)
     python_pure2, python_din_ds2 = phasespace_view(straight[1], off_diagonal_number)
-    pure_phase_c, din_ds_c = phase_space_view_wrapper(sqrtlength, const_length, off_diagonal_number, straight,(2,), test=True)
+    pure_phase_c, din_ds_c = phase_space_view_wrapper(straight,(2,), test=True)
     def cutter(i,j,k,py_big):
         small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
         if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
