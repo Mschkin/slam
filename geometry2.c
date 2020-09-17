@@ -524,14 +524,13 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
     phasespace_progator = np.zeros((N, N, N, N))*/
     double *norm = malloc(const_length * sizeof(double));
     double *dnormed_straight_dstraight = malloc(example_indices * const_length * 81 * sizeof(double));
-    printf("exampleint: %i", example_indices);
 #define norm(i, j) norm[sqrtlength * (i) + (j)]
 #define straight(e, i, j, k) straight[(e)*sqrtlength * sqrtlength * 9 + sqrtlength * 9 * (i) + (j)*9 + (k)]
 #define dnormed_straight_dstraight(i, j, k, l) dnormed_straight_dstraight[sqrtlength * 81 * (i) + (j)*81 + (k)*9 + (l)]
     //dintered_dstraight = np.zeros((N, N, 9, N*N))
     int block_size = (2 * off_diagonal_number - 1) * (2 * off_diagonal_number - 1);
     double *dinterest_dstraight = malloc(const_length * 9 * block_size * sizeof(double));
-    double *dummy_pure_phase = malloc(const_length * sizeof(double));
+    double *dummy_pure_phase = calloc(const_length , sizeof(double));
     double dummy_block[(2 * off_diagonal_number - 1) * (2 * off_diagonal_number - 1)] = {0};
 #define dummy_pure_phase(i, j) dummy_pure_phase[(i)*sqrtlength + (j)]
 #define dinterest_dstraight(i, j, k, l, m) dinterest_dstraight[(i)*sqrtlength * 9 * block_size + (j)*9 * block_size + (k)*block_size + (l) * (2 * off_diagonal_number - 1) + (m)]
@@ -544,7 +543,6 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
     tim.tick()
     pure_phase = np.reshape(start_values, (N * N))*/
 #define pure_phase(e, i, j) pure_phase[(e)*sqrtlength * sqrtlength + (i)*sqrtlength + (j)]
-
     int big_block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
 #define full_din_dstraight(e, i, j, k, l, m) full_din_dstraight[(e)*sqrtlength * sqrtlength * 9 * big_block_size + (i)*sqrtlength * 9 * big_block_size + (j)*9 * big_block_size + (k)*big_block_size + (l) * (2 * off_diagonal_number + 1) + (m)]
 
@@ -642,7 +640,6 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
         }
         //np.einsum('ijkl,ijkmn->ijlmn',dnormed_straight_dstraight,dintered_dstraight)
         //full_din has a bigger shape than dinterest_dstraight
-
         for (int i = 0; i < sqrtlength; i++)
         {
             for (int j = 0; j < sqrtlength; j++)
@@ -661,7 +658,7 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
                     }
                 }
             }
-        }
+            }
     }
 
     free(norm);
@@ -765,14 +762,18 @@ int main(void)
 #undef yp
 #undef weights
 }*/
-void main(void)
+int main(void)
 {
     double *straight = malloc(const_length * 2 * 9 * sizeof(double));
     double *full_din_dstraight = malloc(2 * sqrtlength * sqrtlength * 9 * (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1) * sizeof(double));
-    double *pure_phase = malloc(2 * sqrtlength * sqrtlength  * sizeof(double));
-    for (int i = 1; i <= const_length * 2 * 9;i++){
-        straight[i] = i;
+    double *pure_phase = malloc(2 * sqrtlength * sqrtlength * sizeof(double));
+    for (int i = 0; i < const_length * 2 * 9; i++)
+    {
+        straight[i] = i + 1;
     }
     phase_space_view_c(straight, full_din_dstraight, pure_phase, 2);
-    printf("hallo\n");
+    printf("hallo %lu %lu %lu \n", const_length * 2 * 9 * sizeof(double), 2 * sqrtlength * sqrtlength * 9 * (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1) * sizeof(double), 2 * sqrtlength * sqrtlength * sizeof(double));
+    free(straight);
+    free(full_din_dstraight);
+    free(pure_phase);
 }
