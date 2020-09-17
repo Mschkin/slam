@@ -1,7 +1,7 @@
 #from geometry2 import get_rs, get_hessian_parts_R, init_R, dVdg_function, cost_funtion
 import numpy as np
 from cffi import FFI
-import copy
+from copy import deepcopy
 import quaternion
 import matplotlib.pyplot as plt
 import cv2
@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                             double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
                             void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase,int example_indices);
-                void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight);"""
+                void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight,int example_indices);"""
         ffi.cdef(c_header)
         f = open('geometry2.h', 'w')
         f.write(c_header)
@@ -93,18 +93,35 @@ def phase_space_view_wrapper(straight, example_indices, test=False):
     ffi = FFI()
     pure_phase_c=np.zeros(example_indices+(sqrtlength,sqrtlength))
     pure_phase_p=ffi.cast("double*", pure_phase_c.__array_interface__['data'][0])
-    straight_c=copy.deepcopy(straight)
+    straight_c=deepcopy(straight)
     straight_p=ffi.cast("double*", straight_c.__array_interface__['data'][0])
-    di_ds_c=np.zeros(example_indices+(sqrtlength,sqrtlength,9,2*off_diagonal_number+1,2*off_diagonal_number+1))
+    di_ds_c=np.zeros(example_indices+(2*off_diagonal_number+1,2*off_diagonal_number+1,sqrtlength,sqrtlength,9))
     di_ds_p = ffi.cast("double*", di_ds_c.__array_interface__['data'][0])
     phase_space_view_c(straight_p, di_ds_p, pure_phase_p,np.prod(example_indices))
-    return pure_phase_c,di_ds_c
-
+    return pure_phase_c, di_ds_c
+    
+def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices, test=False):
+    if test:
+        from test_constants import sqrtlength,off_diagonal_number
+        from _geometry_test.lib import c_back_phase_space
+    else:
+        from constants import sqrtlength,off_diagonal_number
+        from _geometry2.lib import c_back_phase_space
+    ffi = FFI()
+    dV_dinterest_c=deepcopy(dV_dinterest)
+    dV_dinterest_p = ffi.cast("double*", dV_dinterest_c.__array_interface__['data'][0])
+    dinterest_dstraight_c=deepcopy(dinterest_dstraight)
+    dinterest_dstraight_p = ffi.cast("double*", dinterest_dstraight_c.__array_interface__['data'][0])
+    dV_dstraight_c = np.zeros(example_indices+(sqrtlength, sqrtlength, 9))
+    dV_dstraight_p = ffi.cast("double*", dV_dstraight_c.__array_interface__['data'][0])
+    c_back_phase_space(dinterest_dstraight_p, dV_dinterest_p, dV_dstraight_p,np.prod(example_indices))
+    return dV_dstraight_c
+    
 
 def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
     ffi = FFI()
-    xp_c = copy.deepcopy(xp)
-    yp_c = copy.deepcopy(yp)
+    xp_c = deepcopy(xp)
+    yp_c = deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
     yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
     hdx_c = np.zeros(const_length)
@@ -121,15 +138,15 @@ def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
 
 def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, const_length, array_length):
     ffi = FFI()
-    xp_c = copy.deepcopy(xp)
-    yp_c = copy.deepcopy(yp)
+    xp_c = deepcopy(xp)
+    yp_c = deepcopy(yp)
     xp_p = ffi.cast("double*", xp_c.__array_interface__['data'][0])
     yp_p = ffi.cast("double*", yp_c.__array_interface__['data'][0])
     q_truec = q_true
     q_truep = ffi.new('double[4]', q_truec.tolist())
     t_true_c = t_true
     t_true_p = ffi.new('double[3]', t_true_c.tolist())
-    weights_c = copy.deepcopy(weights)
+    weights_c = deepcopy(weights)
     weights_p = ffi.cast('double*', weights_c.__array_interface__['data'][0])
     r_xc = np.zeros(const_length)
     r_xp = ffi.cast('double*', r_xc.__array_interface__['data'][0])

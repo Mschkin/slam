@@ -333,11 +333,11 @@ def phasespace_view(straight, off_diagonal_number):
                 z[1:-1, 1:-1], N*N)+phasespace_progator@dintered_dstraight[ind]
         pure_phase = phasespace_progator@pure_phase
     dintered_dstraight = np.reshape(dintered_dstraight, (N, N, 9, N, N))
-    return np.reshape(pure_phase, (N, N)), np.einsum('ijkl,ijkmn->ijlmn', dnormed_straight_dstraight, dintered_dstraight)
+    return np.reshape(pure_phase, (N, N)), np.einsum('ijkl,ijkmn->mnijl', dnormed_straight_dstraight, dintered_dstraight)
 
 
 def back_phase_space(dV_dintrest, dintered_dstraight):
-    return np.einsum('ijkmn,mn->ijk', dintered_dstraight, dV_dintrest)
+    return np.einsum('mnijk,mn->ijk', dintered_dstraight, dV_dintrest)
 
 
 def numericdiff(f, input_list, index):  # , tim):

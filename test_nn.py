@@ -1,7 +1,7 @@
 import torch
 from library import modelbuilder, numericdiff, timer
 import numpy as np
-from compile2 import phase_space_view_wrapper
+from compile2 import phase_space_view_wrapper,back_phase_space_wrapper
 from test_constants import *
 
 def torch_apply_net(inp, filt, con):
@@ -63,31 +63,38 @@ def apply_compare():
 assert(apply_compare())
 
 def phase_space():
-    from library import phasespace_view
-    straight=np.random.rand(3,sqrtlength,sqrtlength,9)
+    from library import phasespace_view,back_phase_space
+    straight=np.random.rand(2,sqrtlength,sqrtlength,9)
     python_pure1, python_din_ds1 = phasespace_view(straight[0], off_diagonal_number)
     python_pure2, python_din_ds2 = phasespace_view(straight[1], off_diagonal_number)
-    pure_phase_c, din_ds_c = phase_space_view_wrapper(straight,(3,), test=True)
+    pure_phase_c, din_ds_c = phase_space_view_wrapper(straight,(2,), test=True)
     def cutter(i,j,k,py_big):
         small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
         if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
             #find middle
             m1,m2=i,j
             #find size
-            size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
-            arr=py_big[m1-size//2:m1+size//2+1,m2-size//2:m2+size//2+1]
-            small[off_diagonal_number-size//2:off_diagonal_number+size//2+1,off_diagonal_number-size//2:off_diagonal_number+size//2+1]=arr
+            size = max(min(2 * i + 1, 2 * off_diagonal_number + 1, 2 * j + 1, 2 * (sqrtlength - 1 - i) + 1, 2 * (sqrtlength - 1 - j) + 1), 0)
+            arr = py_big[m1 - size // 2:m1 + size // 2 + 1, m2 - size // 2:m2 + size // 2 + 1]
+            small[off_diagonal_number - size // 2:off_diagonal_number + size // 2 + 1, off_diagonal_number - size // 2:off_diagonal_number + size // 2 + 1] = arr
         return small
     small_py1=np.zeros_like(din_ds_c[0])
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             for k in range(9):
-                small_py1[i, j, k] = cutter(i, j, k, python_din_ds1[i, j, k])
+                small_py1[...,i, j, k] = cutter(i, j, k, python_din_ds1[..., i, j, k])
+
     small_py2=np.zeros_like(din_ds_c[1])
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             for k in range(9):
-                small_py2[i, j, k] = cutter(i, j, k, python_din_ds2[i, j, k])
-    return np.allclose(pure_phase_c[0], python_pure1) and  np.allclose(din_ds_c[0],small_py1) and np.allclose(pure_phase_c[1], python_pure2) and np.allclose(din_ds_c[1],small_py2)
+                small_py2[...,i, j, k] = cutter(i, j, k, python_din_ds2[..., i, j, k])
+                
+    dV_dinterest = np.random.rand(2,sqrtlength, sqrtlength)
+    python_back1 = back_phase_space(dV_dinterest[0], python_din_ds1)
+    python_back2 = back_phase_space(dV_dinterest[1], python_din_ds2)
+    c_back = back_phase_space_wrapper(dV_dinterest, din_ds_c,(2,), test=True)
+    return np.allclose(pure_phase_c[0], python_pure1) and np.allclose(din_ds_c[0], small_py1) and np.allclose(pure_phase_c[1], python_pure2) and np.allclose(din_ds_c[1], small_py2) and np.allclose(c_back[0], python_back1) and np.allclose(c_back[1], python_back2)
+    
    
 assert(phase_space())
