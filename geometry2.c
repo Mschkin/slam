@@ -674,33 +674,36 @@ void phase_space_view_c(double *straight, double *full_din_dstraight, double *pu
 #undef full_din_dstraight
 }
 
-void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight, int example_index)
+void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight, int example_index, int cost_index)
 {
     //return np.einsum('ijkmn,mn->ijk',dintered_dstraight,dV_dintrest)
     int block_size = (2 * off_diagonal_number + 1) * (2 * off_diagonal_number + 1);
 #define dinterest_dstraight(e, l, m, i, j, k) dinterest_dstraight[(e)*sqrtlength * sqrtlength * 9 * block_size + (l) * (2 * off_diagonal_number + 1) * sqrtlength * sqrtlength * 9 + (m)*sqrtlength * sqrtlength * 9 + (i)*sqrtlength * 9 + (j)*9 + (k)]
-#define dV_dinterest(e, m, n) dV_dinterest[(e)*sqrtlength * sqrtlength + (m)*sqrtlength + (n)]
-#define dV_dstraight(e, i, j, k) dV_dstraight[(e)*sqrtlength * sqrtlength * 9 + (i)*sqrtlength * 9 + (j)*9 + (k)]
+#define dV_dinterest(e, c, m, n) dV_dinterest[(e)*sqrtlength * sqrtlength * cost_index + (c)*sqrtlength * sqrtlength + (m)*sqrtlength + (n)]
+#define dV_dstraight(e, c, i, j, k) dV_dstraight[(e)*sqrtlength * sqrtlength * 9 * cost_index + (c)*sqrtlength * sqrtlength * 9 + (i)*sqrtlength * 9 + (j)*9 + (k)]
     int size;
     for (int e = 0; e < example_index; e++)
     {
-        for (int i = 0; i < sqrtlength; i++)
+        for (int c = 0; c < cost_index; c++)
         {
-            for (int j = 0; j < sqrtlength; j++)
+            for (int i = 0; i < sqrtlength; i++)
             {
-                //size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
-                size = 2 * i + 1 < 2 * off_diagonal_number + 1 ? 2 * i + 1 : 2 * off_diagonal_number + 1;
-                size = size < 2 * j + 1 ? size : 2 * j + 1;
-                size = size < 2 * (sqrtlength - 1 - i) + 1 ? size : 2 * (sqrtlength - 1 - i) + 1;
-                size = size < 2 * (sqrtlength - 1 - j) + 1 ? size : 2 * (sqrtlength - 1 - j) + 1;
-                size = 0 < size ? size : 0;
-                for (int k = 0; k < 9; k++)
+                for (int j = 0; j < sqrtlength; j++)
                 {
-                    for (int m = off_diagonal_number - size / 2; m < off_diagonal_number + size / 2 + 1; m++)
+                    //size=max(min(2*i+1,2*off_diagonal_number+1,2*j+1,2*(sqrtlength-1-i)+1,2*(sqrtlength-1-j)+1),0)
+                    size = 2 * i + 1 < 2 * off_diagonal_number + 1 ? 2 * i + 1 : 2 * off_diagonal_number + 1;
+                    size = size < 2 * j + 1 ? size : 2 * j + 1;
+                    size = size < 2 * (sqrtlength - 1 - i) + 1 ? size : 2 * (sqrtlength - 1 - i) + 1;
+                    size = size < 2 * (sqrtlength - 1 - j) + 1 ? size : 2 * (sqrtlength - 1 - j) + 1;
+                    size = 0 < size ? size : 0;
+                    for (int k = 0; k < 9; k++)
                     {
-                        for (int n = off_diagonal_number - size / 2; n < off_diagonal_number + size / 2 + 1; n++)
+                        for (int m = off_diagonal_number - size / 2; m < off_diagonal_number + size / 2 + 1; m++)
                         {
-                            dV_dstraight(e, i, j, k) += dinterest_dstraight(e, m, n, i, j, k) * dV_dinterest(e, m + i - off_diagonal_number, n + j - off_diagonal_number);
+                            for (int n = off_diagonal_number - size / 2; n < off_diagonal_number + size / 2 + 1; n++)
+                            {
+                                dV_dstraight(e, c, i, j, k) += dinterest_dstraight(e, m, n, i, j, k) * dV_dinterest(e, c, m + i - off_diagonal_number, n + j - off_diagonal_number);
+                            }
                         }
                     }
                 }

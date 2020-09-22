@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                             double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
                             void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase,int example_indices);
-                void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight,int example_indices);"""
+                void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight,int example_indices, int cost_index);"""
         ffi.cdef(c_header)
         f = open('geometry2.h', 'w')
         f.write(c_header)
@@ -100,7 +100,7 @@ def phase_space_view_wrapper(straight, example_indices, test=False):
     phase_space_view_c(straight_p, di_ds_p, pure_phase_p,np.prod(example_indices))
     return pure_phase_c, di_ds_c
     
-def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices, test=False):
+def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices,cost_index, test=False):
     if test:
         from test_constants import sqrtlength,off_diagonal_number
         from _geometry_test.lib import c_back_phase_space
@@ -110,15 +110,21 @@ def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices, 
     ffi = FFI()
     dV_dinterest_c=deepcopy(dV_dinterest)
     dV_dinterest_p = ffi.cast("double*", dV_dinterest_c.__array_interface__['data'][0])
-    dinterest_dstraight_c=deepcopy(dinterest_dstraight)
+    dinterest_dstraight_c = deepcopy(dinterest_dstraight)
     dinterest_dstraight_p = ffi.cast("double*", dinterest_dstraight_c.__array_interface__['data'][0])
-    dV_dstraight_c = np.zeros(example_indices+(sqrtlength, sqrtlength, 9))
+    dV_dstraight_c = np.zeros(example_indices+cost_index+(sqrtlength, sqrtlength, 9))
     dV_dstraight_p = ffi.cast("double*", dV_dstraight_c.__array_interface__['data'][0])
-    c_back_phase_space(dinterest_dstraight_p, dV_dinterest_p, dV_dstraight_p,np.prod(example_indices))
+    c_back_phase_space(dinterest_dstraight_p, dV_dinterest_p, dV_dstraight_p,np.prod(example_indices),np.prod(cost_index))
     return dV_dstraight_c
     
 
-def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
+def get_hessian_parts_wrapper(xp, yp, test=False):
+    if test:
+        from test_constants import const_length,array_length
+        from _geometry_test.lib import get_hessian_parts_R_c
+    else:
+        from constants import const_length,array_length
+        from _geometry2.lib import get_hessian_parts_R_c
     ffi = FFI()
     xp_c = deepcopy(xp)
     yp_c = deepcopy(yp)
@@ -136,7 +142,13 @@ def get_hessian_parts_wrapper(xp, yp, const_length, array_length):
     return hdx_p, hdy_p, hnd_raw_p, [hdx_c, hdy_c, hnd_raw_c]
 
 
-def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, const_length, array_length):
+def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p,test=False):
+    if test:
+        from test_constants import const_length,array_length
+        from _geometry_test.lib import dVdg_function_c
+    else:
+        from constants import const_length,array_length
+        from _geometry2.lib import dVdg_function_c
     ffi = FFI()
     xp_c = deepcopy(xp)
     yp_c = deepcopy(yp)
