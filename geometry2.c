@@ -167,7 +167,6 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                              double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
-    printf("%f", weights_not_normed[0]);
     printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
 
 #define hdx_R(i, j) hdx_R[sqrtlength * (i) + (j)]

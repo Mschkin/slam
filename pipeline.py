@@ -31,12 +31,12 @@ modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None),
     'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, 226, 226),(2,),(4,101,101))
 modelclass_full = modelbuilder(
     [('view', (3,36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3),(2,99,99),(9,))
-filter1 = np.random.rand(3, 6, 6, 3)
-filter2 = np.random.rand(3, 6, 6, 3)
-filter3 = np.random.rand(2, 5, 5, 3)
-filter4 = np.random.rand(4, 4, 4, 2)
-fullyconneted = np.random.rand(9, 36)
-compare = np.random.rand(1, 18)
+filter1 = np.random.randn(3, 6, 6, 3)/300
+filter2 = np.random.randn(3, 6, 6, 3)/300
+filter3 = np.random.randn(2, 5, 5, 3)/150
+filter4 = np.random.randn(4, 4, 4, 2)/150
+fullyconneted = np.random.randn(9, 36)/300
+compare = np.random.randn(1, 18)/18
 tim.tick()
 filter_finder = modelclass_convolve([filter1, None, filter2, None,
                                      filter3, None, filter4, None])
@@ -54,7 +54,7 @@ def test_phasespace_view(I):
     return np.random.rand(99, 99)
 
 
-def splittimg(I):
+def splitt_img(I):
     assert np.shape(I) == (4, 101, 101)
     # cv2.imshow('asf', f)
     # cv2.waitKey(1000)
@@ -65,14 +65,28 @@ def splittimg(I):
     # print(r.dtype)
     return r
 
+def fuse_image(r):
+    assert np.shape(r) == (99,99,4, 3, 3)
+    I = np.zeros((4, 99, 99))
+    for i in range(99):
+        for j in range(99):
+            I[:, i:3 + i, j:j + 3] += r[i, j]
+    return r
+
 def prepare_weights(describtion1, describtion2):
     compare_imp = []
+    back_pro_mat_1 = np.zeros((sqrtlength,sqrtlength, (array_length // const_length)** 2))
+    back_pro_mat_2 = np.zeros((sqrtlength,sqrtlength, (array_length // const_length)** 2))
+    index = 0
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
                 for l in range(max(0, j - off_diagonal_number), min(sqrtlength, j + off_diagonal_number + 1)):
                     compare_imp.append(np.concatenate((describtion1[i, j], describtion2[k, l])))
-    return np.array(compare_imp)
+                    back_pro_mat_1[i, j, index] = 1
+                    back_pro_mat_2[k, l, index] = 1
+                    index += 1
+    return np.array(compare_imp), back_pro_mat_1, back_pro_mat_2
 
 def get_weigths(interest1, interest2, similarity):
     similarity_gen=(i for i in similarity)
@@ -97,13 +111,13 @@ def pipeline(I1, I2):
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
     inp=np.array([I1,I2])
     flow_weights = filter_finder(inp)
-    parts_flow = np.array([splittimg(i) for i in flow_weights])
+    parts_flow = np.array([splitt_img(i) for i in flow_weights])
     staight = full_finder(parts_flow)
     interest, dinterest_dstraight = phase_space_view_wrapper(staight, (2,))
     describe_weights = filter_describe(inp)
-    parts_describe = np.array([splittimg(i) for i in describe_weights])
+    parts_describe = np.array([splitt_img(i) for i in describe_weights])
     describtion = full_describe(parts_describe)
-    compare_imp = prepare_weights(describtion[0], describtion[1])
+    compare_imp, back_pro_mat_1, back_pro_mat_2 = prepare_weights(describtion[0], describtion[1])
     similarity = compare_net(compare_imp)
     weights,dweights_dint1, dweights_dint2, dweights_dsim = get_weigths(interest[0], interest[1],similarity)
     xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
@@ -124,11 +138,18 @@ def pipeline(I1, I2):
     dV_dcomp_imp = compare_net.calculate_derivatives(compare_imp, dV_dsim)[0]
     dV_dstraight = back_phase_space_wrapper(np.array([[dV_dint1], [dV_dint2]]), dinterest_dstraight, (2,), (1,))
     dV_dflow_parts = full_finder.calculate_derivatives(parts_flow, dV_dstraight)[0]
-    dV_ddescribe_parts = full_describe.calculate_derivatives(parts_describe, dV_dcomp_imp)[0]
-    
-    
-    
-    
+    dV_ddescribtion1 = np.einsum('ijk,kl->ijl', back_pro_mat_1, dV_dcomp_imp[:,:9])
+    dV_ddescribtion2 = np.einsum('ijk,kl->ijl', back_pro_mat_2, dV_dcomp_imp[:, 9:])
+    dV_ddescribe_parts = full_describe.calculate_derivatives(parts_describe, np.array([dV_ddescribtion1, dV_ddescribtion2]))[0]
+    dV_ddescribe_weights = np.array([fuse_image(i) for i in dV_ddescribe_parts])
+    filter_describe.calculate_derivatives(inp, dV_ddescribe_weights)
+    dV_dflow_weights = np.array([fuse_image(i) for i in dV_dflow_parts])
+    filter_finder.calculate_derivatives(inp, dV_dflow_weights)
+    compare_net.update_weights()
+    full_finder.update_weights()
+    full_describe.update_weights()
+    filter_describe.update_weights()
+    filter_finder.update_weights()
 
     
     
