@@ -45,7 +45,7 @@ filter_describe = modelclass_convolve(
 full_finder = modelclass_full([None, fullyconneted, None])
 full_describe = modelclass_full([None, fullyconneted, None])
 compare_class = modelbuilder(
-    [('fully_connected', (1, 18)), ('sigmoid', None)], (18,),((array_length//const_length)**2,),(1,))
+    [('fully_connected', (1, 18)), ('sigmoid', None)], (18,),(array_length,),(1,))
 compare_net = compare_class([compare, None])
 
 
@@ -66,27 +66,37 @@ def splitt_img(I):
     return r
 
 def fuse_image(r):
-    assert np.shape(r) == (99,99,4, 3, 3)
+    assert np.shape(r) == (99,99,1,4, 3, 3)
     I = np.zeros((4, 99, 99))
     for i in range(99):
         for j in range(99):
             I[:, i:3 + i, j:j + 3] += r[i, j]
-    return r
+    return I
 
 def prepare_weights(describtion1, describtion2):
     compare_imp = []
-    back_pro_mat_1 = np.zeros((sqrtlength,sqrtlength, (array_length // const_length)** 2))
-    back_pro_mat_2 = np.zeros((sqrtlength,sqrtlength, (array_length // const_length)** 2))
     index = 0
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
-                for l in range(max(0, j - off_diagonal_number), min(sqrtlength, j + off_diagonal_number + 1)):
+                for l in range(sqrtlength):
                     compare_imp.append(np.concatenate((describtion1[i, j], describtion2[k, l])))
-                    back_pro_mat_1[i, j, index] = 1
-                    back_pro_mat_2[k, l, index] = 1
                     index += 1
-    return np.array(compare_imp), back_pro_mat_1, back_pro_mat_2
+    return np.array(compare_imp)
+
+def prepare_weights_backward(dV_dcomp_imp):
+    index = 0
+    dV_ddescribtion1 = np.zeros((sqrtlength, sqrtlength, 9))
+    dV_ddescribtion2 = np.zeros((sqrtlength, sqrtlength, 9))
+    for i in range(sqrtlength):
+        for j in range(sqrtlength):
+            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+                for l in range(sqrtlength):
+                    dV_ddescribtion1[i, j] += dV_dcomp_imp[index,:9]
+                    dV_ddescribtion2[k, l] += dV_dcomp_imp[index, 9:]
+                    index += 1
+    return dV_ddescribtion1, dV_ddescribtion2
+
 
 def get_weigths(interest1, interest2, similarity):
     similarity_gen=(i for i in similarity)
@@ -97,7 +107,7 @@ def get_weigths(interest1, interest2, similarity):
     for i in range(sqrtlength):
         for j in range(sqrtlength):
             for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
-                for l in range(max(0, j - off_diagonal_number), min(sqrtlength, j + off_diagonal_number + 1)):
+                for l in range(sqrtlength):
                     sim=next(similarity_gen)
                     weights.append(interest1[i, j] * interest2[k, l] * sim)
                     dweights_dint1[i, j, k, l] = interest2[k, l] * sim
@@ -105,19 +115,29 @@ def get_weigths(interest1, interest2, similarity):
                     dweights_dsim.append(interest1[i, j] * interest2[k, l])
     return np.array(weights), dweights_dint1, dweights_dint2, np.array(dweights_dsim)
 
+def decompression(mat):
+    mat_gen = (i for i in mat)
+    ret = np.zeros((sqrtlength, sqrtlength, sqrtlength, sqrtlength))
+    for i in range(sqrtlength):
+        for j in range(sqrtlength):
+            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+                for l in range(sqrtlength):
+                    ret[i, j, k, l] = next(mat_gen)
+    return ret
+
 
 def pipeline(I1, I2):
     I1 = np.swapaxes(np.swapaxes(I1, 0, 2), 1, 2) / 255 - .5
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
     inp=np.array([I1,I2])
     flow_weights = filter_finder(inp)
-    parts_flow = np.array([splitt_img(i) for i in flow_weights])
-    staight = full_finder(parts_flow)
+    flow_parts = np.array([splitt_img(i) for i in flow_weights])
+    staight = full_finder(flow_parts)
     interest, dinterest_dstraight = phase_space_view_wrapper(staight, (2,))
     describe_weights = filter_describe(inp)
-    parts_describe = np.array([splitt_img(i) for i in describe_weights])
-    describtion = full_describe(parts_describe)
-    compare_imp, back_pro_mat_1, back_pro_mat_2 = prepare_weights(describtion[0], describtion[1])
+    describe_parts = np.array([splitt_img(i) for i in describe_weights])
+    describtion = full_describe(describe_parts)
+    compare_imp = prepare_weights(describtion[0], describtion[1])
     similarity = compare_net(compare_imp)
     weights,dweights_dint1, dweights_dint2, dweights_dsim = get_weigths(interest[0], interest[1],similarity)
     xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
@@ -130,20 +150,18 @@ def pipeline(I1, I2):
         xp, yp)
     V, dV_dg = dVdg_wrapper(xp, yp, weights, q_true,
                            t_true, hdx_p, hdy_p, hnd_raw_p)
-    #################### this cant work, use consistent shape of weights##############
-    dV_dint1 = np.einsum('ijkl,ijkl->ij', dV_dg, dweights_dint1)
-    dV_dint2 = np.einsum('ijkl,ijkl->kl', dV_dg, dweights_dint2)
+    dV_dint1 = np.einsum('ijkl,ijkl->ij', decompression(dV_dg), dweights_dint1)
+    dV_dint2 = np.einsum('ijkl,ijkl->kl', decompression(dV_dg), dweights_dint2)
     dV_dsim = dV_dg * dweights_dsim
-    #############################################################################
-    dV_dcomp_imp = compare_net.calculate_derivatives(compare_imp, dV_dsim)[0]
-    dV_dstraight = back_phase_space_wrapper(np.array([[dV_dint1], [dV_dint2]]), dinterest_dstraight, (2,), (1,))
-    dV_dflow_parts = full_finder.calculate_derivatives(parts_flow, dV_dstraight)[0]
-    dV_ddescribtion1 = np.einsum('ijk,kl->ijl', back_pro_mat_1, dV_dcomp_imp[:,:9])
-    dV_ddescribtion2 = np.einsum('ijk,kl->ijl', back_pro_mat_2, dV_dcomp_imp[:, 9:])
-    dV_ddescribe_parts = full_describe.calculate_derivatives(parts_describe, np.array([dV_ddescribtion1, dV_ddescribtion2]))[0]
-    dV_ddescribe_weights = np.array([fuse_image(i) for i in dV_ddescribe_parts])
+    dV_dcomp_imp = compare_net.calculate_derivatives(compare_imp, np.reshape(dV_dsim, (array_length, 1, 1)))[0]
+    #Indexproblem, predict and then print the indices off all objects
+    dV_dstraight = back_phase_space_wrapper(np.array([dV_dint1, dV_dint2]), dinterest_dstraight, (2,), (1,))
+    dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[0]
+    dV_ddescribtion1, dV_ddescribtion2 = prepare_weights_backward(dV_dcomp_imp)
+    dV_ddescribe_parts = full_describe.calculate_derivatives(describe_parts, np.reshape([dV_ddescribtion1, dV_ddescribtion2],full_describe.example_indices+full_describe.cost_indices+full_describe.input_dimensions))[0]
+    dV_ddescribe_weights = np.array([[fuse_image(i)] for i in dV_ddescribe_parts])
     filter_describe.calculate_derivatives(inp, dV_ddescribe_weights)
-    dV_dflow_weights = np.array([fuse_image(i) for i in dV_dflow_parts])
+    dV_dflow_weights = np.array([[fuse_image(i)] for i in dV_dflow_parts])
     filter_finder.calculate_derivatives(inp, dV_dflow_weights)
     compare_net.update_weights()
     full_finder.update_weights()

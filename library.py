@@ -42,7 +42,7 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             assert len(weight_list) == len(tuple_list)
             self.weight_list = []
             self.call_list = []
-            # self.input_dimensions = input_dimensions
+            self.input_dimensions = input_dimensions
             self.back_list = []
             self.derivative_functions = []
             self.propagation_value = []
@@ -142,7 +142,7 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             self.derivative_values = []
             if type(first_old_back) == type(None):
                 first_old_back = np.einsum('e,ck->eck', np.ones(np.prod(self.example_indices)), np.eye(np.prod(self.cost_indices)))
-                first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
+            first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
             back_progation_values = [first_old_back]
             for n, func in enumerate(self.back_list):
                 if self.derivative_functions[n] != None:
