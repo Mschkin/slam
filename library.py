@@ -28,13 +28,13 @@ def conv(f, I):
     return c
 
 
-def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_indeces):
+def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indices,output_indices):
     # list of tuples which contains the names and the dimensions if necessary
     # [('name',dimensions)]
     # implementet: filter, fully_connected,sigmoid, softmax,pooling,view
     # example:
     # modelclass = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
-    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (3, 36)), ('sigmoid', None)], (2,3, 30, 30),(2,),(3,)])
+    # 'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (3, 36)), ('sigmoid', None)], (2,3,30, 30),(2,),(3,)])
     # model = modelclass([filter1, None, filter2, None, filter3,None, filter4, None, None, fullyconneted, None])
     class model_class:
         def __init__(self, weight_list):
@@ -48,8 +48,8 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             self.propagation_value = []
             self.derivative_values = []
             self.learing_rate = .3
-            self.example_indices = example_indeces
-            self.cost_indices = cost_indeces
+            self.example_indices = example_indices
+            self.cost_indices = cost_indices
             for n, (kind, dimensions) in enumerate(tuple_list):
                 if kind == 'fully_connected':
                     if type(weight_list[n]) == type(None):
@@ -142,7 +142,7 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indeces, cost_inde
             self.derivative_values = []
             if type(first_old_back) == type(None):
                 first_old_back = np.einsum('e,ck->eck', np.ones(np.prod(self.example_indices)), np.eye(np.prod(self.cost_indices)))
-            first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
+                first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
             back_progation_values = [first_old_back]
             for n, func in enumerate(self.back_list):
                 if self.derivative_functions[n] != None:

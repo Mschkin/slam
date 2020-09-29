@@ -129,34 +129,62 @@ def decompression(mat):
 def pipeline(I1, I2):
     I1 = np.swapaxes(np.swapaxes(I1, 0, 2), 1, 2) / 255 - .5
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
-    inp=np.array([I1,I2])
+    inp = np.array([I1, I2])
+    assert((2,3,255,255)==np.shape(inp))
     flow_weights = filter_finder(inp)
+    assert((2,4,101,101)==np.shape(flow_weights))
     flow_parts = np.array([splitt_img(i) for i in flow_weights])
-    staight = full_finder(flow_parts)
-    interest, dinterest_dstraight = phase_space_view_wrapper(staight, (2,))
+    assert((2,99,99,4,3,3)==np.shape(flow_parts))
+    straight = full_finder(flow_parts)
+    assert((2,99,99,9)==np.shape(straight))
+    interest, dinterest_dstraight = phase_space_view_wrapper(straight, (2,))
+    assert ((2, 99, 99) == np.shape(interest))
+    assert ((2,)+(2*off_diagonal_number+1,2*off_diagonal_number+1,sqrtlength,sqrtlength,9) == np.shape(dinterest_dstraight))
+    
     describe_weights = filter_describe(inp)
+    assert ((2, 4,101,101) == np.shape(describe_weights))
     describe_parts = np.array([splitt_img(i) for i in describe_weights])
+    assert ((2,99,99,4,3,3) == np.shape(describe_parts))
     describtion = full_describe(describe_parts)
+    assert ((2, 99, 99) == np.shape(describtion))
     compare_imp = prepare_weights(describtion[0], describtion[1])
+    assert ((2, 99, 99,18) == np.shape(compare_imp))
     similarity = compare_net(compare_imp)
-    weights,dweights_dint1, dweights_dint2, dweights_dsim = get_weigths(interest[0], interest[1],similarity)
+    assert ((array_length,) = np.shape(similarity))
+    weights, dweights_dint1, dweights_dint2, dweights_dsim = get_weigths(interest[0], interest[1], similarity)
+    assert ((array_length,) == np.shape(weights))
+    assert ((array_length, 99, 99) == np.shape(dweights_dint1))
+    assert ((array_length, 99, 99) == np.shape(dweights_dint2))
+    assert ((array_length, ) == np.shape(dweights_dsim))
     xp = np.einsum('ik,jk->ijk', np.stack((np.arange(99), np.ones(
         (99)), 50*np.ones((99))), axis=-1), np.stack((np.ones((99)), np.arange(99), np.ones((99))), axis=-1)) - 49.
     yp = deepcopy(xp)
+    assert ((99, 99, 3) == np.shape(xp))
+    assert ((99, 99, 3) == np.shape(yp))
     t_true = np.random.rand(3)
     q_true = .1 * np.random.rand(3)
     q_true = np.array([(1 - q_true@q_true)**.5] + list(q_true))
     hdx_p, hdy_p, hnd_raw_p, datalist = get_hessian_parts_wrapper(
         xp, yp)
+    assert ((99 * 99) == np.shape(datalist[0]))
+    assert ((99 * 99) == np.shape(datalist[1]))
+    assert ((99 * 99, 99 * 99) == np.shape(datalist[2]))
     V, dV_dg = dVdg_wrapper(xp, yp, weights, q_true,
                            t_true, hdx_p, hdy_p, hnd_raw_p)
+    assert ((array_length,) == np.shape(dV_dg))   
     dV_dint1 = np.einsum('ijkl,ijkl->ij', decompression(dV_dg), dweights_dint1)
+    assert ((99, 99) == np.shape(dV_dint1))
     dV_dint2 = np.einsum('ijkl,ijkl->kl', decompression(dV_dg), dweights_dint2)
+    assert ((99, 99) == np.shape(dV_dint2))
     dV_dsim = dV_dg * dweights_dsim
+    assert ((array_length,) == np.shape(dV_dsim)) 
     dV_dcomp_imp = compare_net.calculate_derivatives(compare_imp, np.reshape(dV_dsim, (array_length, 1, 1)))[0]
+    assert ((2, 99, 99,1,18) == np.shape(dV_dcomp_imp)) 
     #Indexproblem, predict and then print the indices off all objects
     dV_dstraight = back_phase_space_wrapper(np.array([dV_dint1, dV_dint2]), dinterest_dstraight, (2,), (1,))
+    assert ((2, 99, 99,1, 9) == np.shape(dV_dstraight))
     dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[0]
+    assert ((2,99,99,1,4,3,3) == np.shape(dV_dflow_parts))
     dV_ddescribtion1, dV_ddescribtion2 = prepare_weights_backward(dV_dcomp_imp)
     dV_ddescribe_parts = full_describe.calculate_derivatives(describe_parts, np.reshape([dV_ddescribtion1, dV_ddescribtion2],full_describe.example_indices+full_describe.cost_indices+full_describe.input_dimensions))[0]
     dV_ddescribe_weights = np.array([[fuse_image(i)] for i in dV_ddescribe_parts])
