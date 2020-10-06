@@ -1,5 +1,5 @@
-sqrtlength= 99
-const_length= sqrtlength *sqrtlength
-off_diagonal_number= 10
-array_length= const_length *(off_diagonal_number * (-off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
-big_array_length= const_length *(2 * off_diagonal_number * (-2 * off_diagonal_number + 2 * sqrtlength - 1) + sqrtlength)
+sqrtlength_real= 99
+const_length_real = sqrtlength_real *sqrtlength_real
+off_diagonal_number_real= 10
+array_length_real= const_length_real *(off_diagonal_number_real * (-off_diagonal_number_real + 2 * sqrtlength_real - 1) + sqrtlength_real)
+big_array_length_real= const_length_real *(2 * off_diagonal_number_real * (-2 * off_diagonal_number_real + 2 * sqrtlength_real - 1) + sqrtlength_real)

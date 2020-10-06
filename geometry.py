@@ -7,6 +7,7 @@ from sympy import LeviCivita
 import matplotlib.pyplot as plt
 # todo:
 # fyjkihg67uio87ygh
+# Check backprob uses updated or initial weights
 # consider bias in fully connected layer & filter
 # boundaries of correct convergence, 0.2 seems still to work
 # we used a distance of off_diagonal_number to boundaries as strart of phasespaceview, to bias against points on boundary, because they could lie outside the other image

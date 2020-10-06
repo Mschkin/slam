@@ -29,10 +29,14 @@ if __name__ == "__main__":
         f.write(c_header)
         f.close()
         if i == 0:
-            from constants import *
+            from constants import sqrtlength_real,off_diagonal_number_real
+            sqrtlength = sqrtlength_real
+            off_diagonal_number = off_diagonal_number_real
             libname="_geometry2"
         elif i == 1:
-            from test_constants import *
+            from test_constants import sqrtlength_test,off_diagonal_number_test
+            sqrtlength = sqrtlength_test
+            off_diagonal_number = off_diagonal_number_test
             libname="_geometry_test"
         constants=f"""#define sqrtlength {sqrtlength}
                     #define const_length sqrtlength *sqrtlength
@@ -51,12 +55,12 @@ if __name__ == "__main__":
                     )
 
         ffi.compile(verbose=True)
-
+"""
 from _geometry2.lib import fast_findanalytic_R_c
 from _geometry2.lib import get_hessian_parts_R_c
 from _geometry2.lib import dVdg_function_c
 from _geometry2.lib import sparse_invert,phase_space_view_c
-"""
+
 mat = np.zeros((20, 20, 20, 20))
 for i, v in np.ndenumerate(mat):
     mat[i] = np.random.rand() * (i[2] - 10 <= i[0] <= i[2] + 10) * \
@@ -85,11 +89,15 @@ sparse_invert(matp, v1p, v2p)
 
 def phase_space_view_wrapper(straight, example_indices, test=False):
     if test:
-        from test_constants import sqrtlength,off_diagonal_number
+        from test_constants import sqrtlength_test,off_diagonal_number_test
         from _geometry_test.lib import phase_space_view_c
+        sqrtlength = sqrtlength_test
+        off_diagonal_number = off_diagonal_number_test
     else:
-        from constants import sqrtlength,off_diagonal_number
+        from constants import sqrtlength_real,off_diagonal_number_real
         from _geometry2.lib import phase_space_view_c
+        sqrtlength = sqrtlength_real
+        off_diagonal_number = off_diagonal_number_real
     ffi = FFI()
     pure_phase_c=np.zeros(example_indices+(sqrtlength,sqrtlength))
     pure_phase_p=ffi.cast("double*", pure_phase_c.__array_interface__['data'][0])
@@ -102,11 +110,15 @@ def phase_space_view_wrapper(straight, example_indices, test=False):
     
 def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices,cost_index, test=False):
     if test:
-        from test_constants import sqrtlength,off_diagonal_number
+        from test_constants import sqrtlength_test,off_diagonal_number_test
         from _geometry_test.lib import c_back_phase_space
+        sqrtlength = sqrtlength_test
+        off_diagonal_number = off_diagonal_number_test
     else:
-        from constants import sqrtlength,off_diagonal_number
+        from constants import sqrtlength_real,off_diagonal_number_real
         from _geometry2.lib import c_back_phase_space
+        sqrtlength = sqrtlength_real
+        off_diagonal_number = off_diagonal_number_real
     ffi = FFI()
     dV_dinterest_c=deepcopy(dV_dinterest)
     dV_dinterest_p = ffi.cast("double*", dV_dinterest_c.__array_interface__['data'][0])
@@ -120,11 +132,15 @@ def back_phase_space_wrapper(dV_dinterest, dinterest_dstraight,example_indices,c
 
 def get_hessian_parts_wrapper(xp, yp, test=False):
     if test:
-        from test_constants import const_length,array_length
+        from test_constants import array_length_test ,const_length_test
         from _geometry_test.lib import get_hessian_parts_R_c
+        array_length = array_length_test
+        const_length = const_length_test
     else:
-        from constants import const_length,array_length
+        from constants import array_length_real,const_length_real
         from _geometry2.lib import get_hessian_parts_R_c
+        array_length = array_length_real
+        const_length = const_length_real
     ffi = FFI()
     xp_c = deepcopy(xp)
     yp_c = deepcopy(yp)
@@ -144,11 +160,15 @@ def get_hessian_parts_wrapper(xp, yp, test=False):
 
 def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p,test=False):
     if test:
-        from test_constants import const_length,array_length
+        from test_constants import array_length_test ,const_length_test
         from _geometry_test.lib import dVdg_function_c
+        array_length = array_length_test
+        const_length = const_length_test
     else:
-        from constants import const_length,array_length
+        from constants import array_length_real,const_length_real
         from _geometry2.lib import dVdg_function_c
+        array_length = array_length_real
+        const_length = const_length_real
     ffi = FFI()
     xp_c = deepcopy(xp)
     yp_c = deepcopy(yp)

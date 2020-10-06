@@ -3,8 +3,9 @@ from library import modelbuilder, numericdiff, timer
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper
 from test_constants import *
+from pipeline import pipe_line
 
-def torch_apply_net(inp, filt, con):
+def torch_apply_net(inp, filt, con,sqrtlength):
     inp = torch.from_numpy(inp)
     inp.requires_grad = True
     filt = torch.from_numpy(filt)
@@ -22,8 +23,8 @@ def torch_apply_net(inp, filt, con):
     r = linear(r)
     sig = torch.nn.Sigmoid()
     r = sig(r)
-    x = np.zeros((9, 7, 3, 3, 20, 20))
-    filt_der = np.zeros((9, 7, 3, 2,3, 5, 5))
+    x = np.zeros((9, 7, 3, 3, sqrtlength, sqrtlength))
+    filt_der = np.zeros((9, 7, 3, 2,3, 4, 4))
     con_der = np.zeros((9, 7, 3, 3, 128))
     for i in range(9):
         for j in range(7):
@@ -37,62 +38,61 @@ def torch_apply_net(inp, filt, con):
                 linear.weight.grad = torch.zeros_like(linear.weight.grad)
     filt_der = np.einsum('...ijk->...jki', filt_der)
     return r, x, filt_der, con_der
-    
 
 
-def apply_compare():
+def apply_compare(sqrtlength):
     modelclass = modelbuilder(
-        [('filter', (2, 5, 5, 3)), ('pooling', (1, 2, 2)), ('softmax', None), (
-            'view', (3, 128)), ('fully_connected', (3, 128)), ('sigmoid', None)], (9, 7, 3, 20, 20), (9, 7), (3,))
+        [('filter', (2, 4, 4, 3)), ('pooling', (1, 2, 2)), ('softmax', None), (
+            'view', (3, 128)), ('fully_connected', (3, 128)), ('sigmoid', None)], (3, sqrtlength, sqrtlength), (9, 7), (3,),(3,))
 
-    filt = np.random.randn(2, 5, 5, 3)
-    inp = np.random.randn(9, 7, 3, 20, 20)
+    filt = np.random.randn(2, 4, 4, 3)
+    inp = np.random.randn(9, 7, 3, sqrtlength, sqrtlength)
     con = np.random.randn(3, 128)
     net = modelclass([filt, None, None, None, con, None])
     rs = net(inp)
     onw_der = net.calculate_derivatives(
         inp)
-    onw_der = np.reshape(onw_der[-1], (9, 7, 3, 3, 20, 20))
+    onw_der = np.reshape(onw_der[-1], (9, 7, 3, 3, sqrtlength, sqrtlength))
     filt = np.einsum('ijkl->iljk', filt)
-    inp = np.reshape(inp, (63, 3, 20, 20))
-    r, der, filt_der, con_der = torch_apply_net(inp, filt, con)
+    inp = np.reshape(inp, (63, 3, sqrtlength, sqrtlength))
+    r, der, filt_der, con_der = torch_apply_net(inp, filt, con,sqrtlength)
     return np.allclose(rs, r.detach().numpy()) and np.allclose(der, onw_der) and np.allclose(filt_der,net.derivative_values[0]) and np.allclose(con_der,net.derivative_values[4])
 
 
 
-assert(apply_compare())
+assert(apply_compare(sqrtlength_test))
 
 def phase_space():
     from library import phasespace_view,back_phase_space
-    straight=np.random.rand(2,sqrtlength,sqrtlength,9)
-    python_pure1, python_din_ds1 = phasespace_view(straight[0], off_diagonal_number)
-    python_pure2, python_din_ds2 = phasespace_view(straight[1], off_diagonal_number)
+    straight=np.random.rand(2,sqrtlength_test,sqrtlength_test,9)
+    python_pure1, python_din_ds1 = phasespace_view(straight[0], off_diagonal_number_test)
+    python_pure2, python_din_ds2 = phasespace_view(straight[1], off_diagonal_number_test)
     pure_phase_c, din_ds_c = phase_space_view_wrapper(straight, (2,), test=True)
     
     def cutter(i,j,k,py_big):
-        small=np.zeros((off_diagonal_number*2+1,2*off_diagonal_number+1))
-        if 0<i<sqrtlength-1 and 0<j<sqrtlength-1:
+        small=np.zeros((off_diagonal_number_test*2+1,2*off_diagonal_number_test+1))
+        if 0<i<sqrtlength_test-1 and 0<j<sqrtlength_test-1:
             #find middle
             m1,m2=i,j
             #find size
-            size = max(min(2 * i + 1, 2 * off_diagonal_number + 1, 2 * j + 1, 2 * (sqrtlength - 1 - i) + 1, 2 * (sqrtlength - 1 - j) + 1), 0)
+            size = max(min(2 * i + 1, 2 * off_diagonal_number_test + 1, 2 * j + 1, 2 * (sqrtlength_test - 1 - i) + 1, 2 * (sqrtlength_test - 1 - j) + 1), 0)
             arr = py_big[m1 - size // 2:m1 + size // 2 + 1, m2 - size // 2:m2 + size // 2 + 1]
-            small[off_diagonal_number - size // 2:off_diagonal_number + size // 2 + 1, off_diagonal_number - size // 2:off_diagonal_number + size // 2 + 1] = arr
+            small[off_diagonal_number_test - size // 2:off_diagonal_number_test + size // 2 + 1, off_diagonal_number_test - size // 2:off_diagonal_number_test + size // 2 + 1] = arr
         return small
 
     small_py1=np.zeros_like(din_ds_c[0])
-    for i in range(sqrtlength):
-        for j in range(sqrtlength):
+    for i in range(sqrtlength_test):
+        for j in range(sqrtlength_test):
             for k in range(9):
                 small_py1[...,i, j, k] = cutter(i, j, k, python_din_ds1[..., i, j, k])
 
     small_py2=np.zeros_like(din_ds_c[1])
-    for i in range(sqrtlength):
-        for j in range(sqrtlength):
+    for i in range(sqrtlength_test):
+        for j in range(sqrtlength_test):
             for k in range(9):
                 small_py2[...,i, j, k] = cutter(i, j, k, python_din_ds2[..., i, j, k])
                 
-    dV_dinterest = np.random.rand(2,2,sqrtlength, sqrtlength)
+    dV_dinterest = np.random.rand(2,2,sqrtlength_test, sqrtlength_test)
     python_back1 = back_phase_space(dV_dinterest[0,0], python_din_ds1)
     python_back2 = back_phase_space(dV_dinterest[1, 0], python_din_ds2)
     python_back3 = back_phase_space(dV_dinterest[0, 1], python_din_ds1)
@@ -103,3 +103,8 @@ def phase_space():
     
    
 assert (phase_space())
+
+I1 = np.random.randint(0, 255, ((sqrtlength_test+2+7)*2+10, (sqrtlength_test+2+7)*2+10, 3))
+I2 = np.random.randint(0, 255, ((sqrtlength_test+2+7)*2+10, (sqrtlength_test+2+7)*2+10, 3))
+pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
+tim.tick()

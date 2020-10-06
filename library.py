@@ -51,6 +51,7 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
             self.example_indices = example_indices
             self.cost_indices = cost_indices
             for n, (kind, dimensions) in enumerate(tuple_list):
+                print(kind,input_dimensions)
                 if kind == 'fully_connected':
                     if type(weight_list[n]) == type(None):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
@@ -99,12 +100,14 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
                     assert weight_list[n] == None
                     assert np.product(
                         input_dimensions[-1*dimensions[0]:]) == np.product(dimensions[1:])
-                    input_dimensions = input_dimensions[-1 *
-                                                        dimensions[0]:] + dimensions[1:]
+                    input_dimensions = input_dimensions[:-1 *
+                                                        dimensions[0]] + dimensions[1:]
                     self.weight_list.append(weight_list[n])
                     self.call_list.append(generator_apply_view(dimensions))
                 else:
                     Exception('Du Depp kannst nicht Tippen:', kind)
+            print(input_dimensions,output_indices,self.example_indices)
+            assert input_dimensions==output_indices
             for n, (kind, dimensions) in enumerate(tuple_list[::-1]):
                 if kind == 'fully_connected':
                     self.back_list.append(
@@ -143,6 +146,8 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
             if type(first_old_back) == type(None):
                 first_old_back = np.einsum('e,ck->eck', np.ones(np.prod(self.example_indices)), np.eye(np.prod(self.cost_indices)))
                 first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + self.cost_indices)
+            else:
+                first_old_back = np.reshape(first_old_back, (np.prod(self.example_indices), np.prod(self.cost_indices)) + output_indices)
             back_progation_values = [first_old_back]
             for n, func in enumerate(self.back_list):
                 if self.derivative_functions[n] != None:
