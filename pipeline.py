@@ -19,20 +19,13 @@ ffi=FFI()
 np.random.seed(6865)
 tim = timer()
 
-def get_nets(sqrtlength,array_length):
+def get_nets(sqrtlength, array_length, filter1=np.random.randn(3, 6, 6, 3) / 300, filter2=np.random.randn(3, 6, 6, 3) / 300, filter3=np.random.randn(2, 5, 5, 3) / 150, filter4=np.random.randn(4, 4, 4, 2) / 150, fullyconneted=np.random.randn(9, 36) / 300, compare=np.random.randn(1, 18) / 18):
     modelclass_fd = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
         'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None), ('view', (3,36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (3, 30, 30),(2,),(1,),(9,))
     modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
         'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength+2)+7)*2+10, ((sqrtlength+2)+7)*2+10),(2,),(1,),(4,sqrtlength+2,sqrtlength+2))
     modelclass_full = modelbuilder(
         [('view', (3,36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3),(2,sqrtlength,sqrtlength),(1,),(9,))
-    filter1 = np.random.randn(3, 6, 6, 3)/300
-    filter2 = np.random.randn(3, 6, 6, 3)/300
-    filter3 = np.random.randn(2, 5, 5, 3)/150
-    filter4 = np.random.randn(4, 4, 4, 2)/150
-    fullyconneted = np.random.randn(9, 36)/300
-    compare = np.random.randn(1, 18)/18
-    tim.tick()
     filter_finder = modelclass_convolve([filter1, None, filter2, None,
                                         filter3, None, filter4, None])
     filter_describe = modelclass_convolve(
@@ -61,12 +54,12 @@ def splitt_img(I,sqrtlength):
     # print(r.dtype)
     return r
 
-def fuse_image(r,sqrtlength):
+def fuse_image_parts(r,sqrtlength):
     assert np.shape(r) == (sqrtlength,sqrtlength,1,4, 3, 3)
-    I = np.zeros((4, sqrtlength, sqrtlength))
+    I = np.zeros((4, sqrtlength+2, sqrtlength+2))
     for i in range(sqrtlength):
         for j in range(sqrtlength):
-            I[:, i:3 + i, j:j + 3] += r[i, j]
+            I[:, i:3 + i, j:j + 3] += r[i, j,0]
     return I
 
 def prepare_weights(description1, description2,sqrtlength,off_diagonal_number):
@@ -121,23 +114,30 @@ def decompression(mat,sqrtlength,off_diagonal_number):
                     ret[i, j, k, l] = next(mat_gen)
     return ret
 
-
-def pipe_line(I1, I2, sqrtlength, array_length, const_length,off_diagonal_number,test=False):
-    filter_finder, filter_describe, full_describe, full_finder, compare_net = get_nets(sqrtlength,array_length)
+def combine_images(I1, I2):
     I1 = np.swapaxes(np.swapaxes(I1, 0, 2), 1, 2) / 255 - .5
     I2 = np.swapaxes(np.swapaxes(I2, 0, 2), 1, 2) / 255 - .5
-    inp = np.array([I1, I2])
+    return np.array([I1, I2])
+
+def combine_images_backward(dV_dinp_describe, dV_dinp_finder):
+    dV_dinp_describe = np.swapaxes(np.swapaxes(dV_dinp_describe, 1, 2), 2, 3) / 255
+    dV_dinp_finder = np.swapaxes(np.swapaxes(dV_dinp_finder, 1, 2), 2, 3) / 255 
+    return dV_dinp_describe[0]+dV_dinp_finder[0],dV_dinp_describe[1]+dV_dinp_finder[1]
+
+def pipe_line_forward(I1, I2, sqrtlength, array_length, const_length,off_diagonal_number,nets,test=False):
+    filter_finder, filter_describe, full_describe, full_finder, compare_net = nets
+    inp = combine_images(I1, I2)
     assert((2,3,((sqrtlength+2)+7)*2+10,((sqrtlength+2)+7)*2+10)==np.shape(inp))
     flow_weights = filter_finder(inp)
     assert((2,4,sqrtlength+2,sqrtlength+2)==np.shape(flow_weights))
     flow_parts = np.array([splitt_img(i,sqrtlength) for i in flow_weights])
     assert((2,sqrtlength,sqrtlength,4,3,3)==np.shape(flow_parts))
     straight = full_finder(flow_parts)
-    assert((2,sqrtlength,sqrtlength,9)==np.shape(straight))
+    assert ((2, sqrtlength, sqrtlength, 9) == np.shape(straight))
+    # sqrtlength chances from example index to inner index
     interest, dinterest_dstraight = phase_space_view_wrapper(straight, (2,),test=test)
     assert ((2, sqrtlength, sqrtlength) == np.shape(interest))
     assert ((2,)+(2*off_diagonal_number+1,2*off_diagonal_number+1,sqrtlength,sqrtlength,9) == np.shape(dinterest_dstraight))
-    
     describe_weights = filter_describe(inp)
     assert ((2, 4,sqrtlength+2,sqrtlength+2) == np.shape(describe_weights))
     describe_parts = np.array([splitt_img(i,sqrtlength) for i in describe_weights])
@@ -167,7 +167,10 @@ def pipe_line(I1, I2, sqrtlength, array_length, const_length,off_diagonal_number
     assert ((const_length,) == np.shape(datalist[1]))
     assert ((array_length*9,) == np.shape(datalist[2]))
     V, dV_dg = dVdg_wrapper(xp, yp, weights, q_true,
-                           t_true, hdx_p, hdy_p, hnd_raw_p,test=test)
+                           t_true, hdx_p, hdy_p, hnd_raw_p, test=test)
+    return V,dV_dg,compare_imp, flow_parts, describe_parts, inp
+
+def pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp, sqrtlength, array_length, const_length, off_diagonal_number,test=False):
     assert ((array_length,) == np.shape(dV_dg))   
     dV_dint1 = np.einsum('ijkl,ijkl->ij', decompression(dV_dg,sqrtlength,off_diagonal_number), dweights_dint1)
     assert ((sqrtlength, sqrtlength) == np.shape(dV_dint1))
@@ -179,26 +182,29 @@ def pipe_line(I1, I2, sqrtlength, array_length, const_length,off_diagonal_number
     assert ((array_length,1,18) == np.shape(dV_dcomp_imp)) 
     #Indexproblem, predict and then print the indices off all objects
     dV_dstraight = back_phase_space_wrapper(np.array([dV_dint1, dV_dint2]), dinterest_dstraight, (2,), (1,), test=test)
-    print(np.shape(dV_dstraight))
+    # sqrtlength chances from inner index back to example index
+    dV_dstraight=np.reshape(dV_dstraight,(2, sqrtlength, sqrtlength,1, 9))
     assert ((2, sqrtlength, sqrtlength,1, 9) == np.shape(dV_dstraight))
     dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[-1]
+    print('flow parts:',np.shape(dV_dflow_parts))
     assert ((2,sqrtlength,sqrtlength,1,4,3,3) == np.shape(dV_dflow_parts))
     dV_ddescription1, dV_ddescription2 = prepare_weights_backward(dV_dcomp_imp,sqrtlength,off_diagonal_number)
     assert ((sqrtlength, sqrtlength, 9) == np.shape(dV_ddescription1))
     assert ((sqrtlength, sqrtlength, 9) == np.shape(dV_ddescription2))
     dV_ddescribe_parts = full_describe.calculate_derivatives(describe_parts, [dV_ddescription1, dV_ddescription2])[-1]
     assert ((2, sqrtlength, sqrtlength, 1, 4, 3, 3) == np.shape(dV_ddescribe_parts))
-    dV_ddescribe_weights = np.array([[fuse_image(i,sqrtlength)] for i in dV_ddescribe_parts])
+    dV_ddescribe_weights = np.array([[fuse_image_parts(i,sqrtlength)] for i in dV_ddescribe_parts])
     assert ((2, 1, 4, sqrtlength+2, sqrtlength+2) == np.shape(dV_ddescribe_weights))
-    filter_describe.calculate_derivatives(inp, dV_ddescribe_weights)
-    dV_dflow_weights = np.array([[fuse_image(i,sqrtlength)] for i in dV_dflow_parts])
+    dV_dinp_describe=filter_describe.calculate_derivatives(inp, dV_ddescribe_weights)[-1]
+    dV_dflow_weights = np.array([[fuse_image_parts(i,sqrtlength)] for i in dV_dflow_parts])
     assert ((2, 1, 4, sqrtlength+2, sqrtlength+2) == np.shape(dV_dflow_weights))
-    filter_finder.calculate_derivatives(inp, dV_dflow_weights)
+    dV_dinp_finder = filter_finder.calculate_derivatives(inp, dV_dflow_weights)
     compare_net.update_weights()
     full_finder.update_weights()
     full_describe.update_weights()
     filter_describe.update_weights()
     filter_finder.update_weights()
+    return V
 
     
     

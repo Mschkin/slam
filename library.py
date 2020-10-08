@@ -158,11 +158,12 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
                 back_progation_values.append(
                     func(back_progation_values[-1], self.propagation_value[-n - 2]))
             self.derivative_values = self.derivative_values[::-1]
+            back_progation_values = [np.reshape(i, self.example_indices + self.cost_indices + np.shape(i)[2:]) for i in back_progation_values]
             return back_progation_values
 
         def update_weights(self):
             for i in range(len(self.weight_list)):
-                if not self.weight_list[i] == None:
+                if not type(self.weight_list[i]) == type(None):
                     self.weight_list[i] -= self.learing_rate * \
                         np.sum(self.derivative_values[i], axis=tuple(range(len(self.example_indices + self.cost_indices))))
 
@@ -345,9 +346,9 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
     return np.einsum('mnijk,mn->ijk', dintered_dstraight, dV_dintrest)
 
 
-def numericdiff(f, input_list, index):  # , tim):
+def numericdiff(f, input_list, index,output_index=0):  # , tim):
     # get it running for quaternions
-    f0 = f(*input_list)
+    f0 = tuple(f(*input_list))[output_index]
     h = 1 / 10**8
     derivant = input_list[index]
     derivative = np.zeros(np.shape(f0) +
@@ -358,8 +359,8 @@ def numericdiff(f, input_list, index):  # , tim):
         #    tim.tick()
         derivant_h = deepcopy(derivant) * 1.0
         derivant_h[s] += h
-        res = (f(*(input_list[:index] + [derivant_h] +
-                   input_list[index + 1:])) - f0) / h
+        res = (tuple(f(*(input_list[:index] + [derivant_h] +
+                   input_list[index + 1:])))[output_index] - f0) / h
         for i, _ in np.ndenumerate(f0):
             derivative[i + s] = res[i]
     return derivative

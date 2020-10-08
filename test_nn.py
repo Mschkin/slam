@@ -3,7 +3,7 @@ from library import modelbuilder, numericdiff, timer
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper
 from test_constants import *
-from pipeline import pipe_line
+from pipeline import pipe_line_forward,get_nets
 
 def torch_apply_net(inp, filt, con,sqrtlength):
     inp = torch.from_numpy(inp)
@@ -105,6 +105,11 @@ def phase_space():
 assert (phase_space())
 
 I1 = np.random.randint(0, 255, ((sqrtlength_test+2+7)*2+10, (sqrtlength_test+2+7)*2+10, 3))
-I2 = np.random.randint(0, 255, ((sqrtlength_test+2+7)*2+10, (sqrtlength_test+2+7)*2+10, 3))
+I2 = np.random.randint(0, 255, ((sqrtlength_test + 2 + 7) * 2 + 10, (sqrtlength_test + 2 + 7) * 2 + 10, 3))
+
+def pipe_line_forward_wrapper(I1, I2, filter1, filter2, filter3, filter4, fullyconneted, compare):
+    nets = get_nets(sqrtlength_test, array_length_test, filter1, filter2, filter3, filter4, fullyconneted, compare)
+    r = pipe_line_forward(I1, I2, sqrtlength_test, array_length_test, const_length_test, off_diagonal_number_test, nets, True)
+    return r[0]
+
 pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
-tim.tick()
