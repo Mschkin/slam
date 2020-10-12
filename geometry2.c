@@ -120,7 +120,7 @@ void sparse_invert(double *mat, double *v1, double *v2)
 #undef mat
     diff = clock() - start;
     int msec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("invert took %i msec\n", msec);
+    //printf("invert took %i msec\n", msec);
 }
 /*def get_hessian_parts_R(xp, yp):
     hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
@@ -167,7 +167,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
                              double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
 {
-    printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
+    //printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
 
 #define hdx_R(i, j) hdx_R[sqrtlength * (i) + (j)]
 #define hdy_R(i, j) hdy_R[sqrtlength * (i) + (j)]
@@ -179,7 +179,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 #define Hdy_R_inv(i, j, k, l) Hdy_R_inv[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
 #define Hnd_R_inv(i, j, k, l) Hnd_R_inv[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
     double *weights = malloc(array_length * sizeof(double));
-    printf("arraylength: %i \n", array_length);
+    //printf("arraylength: %i \n", array_length);
     double norm = 0;
     for (size_t i = 0; i < array_length; i++)
     {
@@ -322,7 +322,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     }
     diff = clock() - start;
     int msec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("matmul took %i msec\n", msec);
+    //printf("matmul took %i msec\n", msec);
     for (int blocky = 0; blocky < sqrtlength; blocky++)
     {
         for (int y = 0; y < sqrtlength; y++)

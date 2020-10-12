@@ -51,7 +51,6 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
             self.example_indices = example_indices
             self.cost_indices = cost_indices
             for n, (kind, dimensions) in enumerate(tuple_list):
-                print(kind,input_dimensions)
                 if kind == 'fully_connected':
                     if type(weight_list[n]) == type(None):
                         weight_list[n] = (np.random.rand(dimensions) - 0.5) / 2
@@ -106,7 +105,6 @@ def modelbuilder(tuple_list, input_dimension_numbers, example_indices, cost_indi
                     self.call_list.append(generator_apply_view(dimensions))
                 else:
                     Exception('Du Depp kannst nicht Tippen:', kind)
-            print(input_dimensions,output_indices,self.example_indices)
             assert input_dimensions==output_indices
             for n, (kind, dimensions) in enumerate(tuple_list[::-1]):
                 if kind == 'fully_connected':
@@ -348,22 +346,31 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
 
 def numericdiff(f, input_list, index,output_index=0):  # , tim):
     # get it running for quaternions
-    f0 = tuple(f(*input_list))[output_index]
+    tim=timer()
+    is_tuple = False
+    f0 = f(*input_list)
+    if type(f0) is tuple:
+        f0 = f0[output_index]
+        is_tuple=True
     h = 1 / 10**8
     derivant = input_list[index]
-    derivative = np.zeros(np.shape(f0) +
-                          np.shape(derivant), dtype=np.double)
-
-    for s, _ in np.ndenumerate(derivant):
-        # if s[-1] == 0:
-        #    tim.tick()
-        derivant_h = deepcopy(derivant) * 1.0
-        derivant_h[s] += h
-        res = (tuple(f(*(input_list[:index] + [derivant_h] +
-                   input_list[index + 1:])))[output_index] - f0) / h
-        for i, _ in np.ndenumerate(f0):
-            derivative[i + s] = res[i]
-    return derivative
+    derivative = np.zeros(
+                          np.shape(derivant)+np.shape(f0), dtype=np.double)
+    if not is_tuple:
+        for s, _ in np.ndenumerate(derivant):
+            derivant_h = deepcopy(derivant) * 1.0
+            derivant_h[s] += h
+            res = (f(*(input_list[:index] + [derivant_h] +
+                    input_list[index + 1:])) - f0) / h
+            derivative[s] = res
+    else:
+        for s, _ in np.ndenumerate(derivant):
+            derivant_h = deepcopy(derivant) * 1.0
+            derivant_h[s] += h
+            res = (f(*(input_list[:index] + [derivant_h] +
+                    input_list[index + 1:]))[output_index] - f0) / h
+            derivative[s] = res
+    return np.einsum(derivative,list(range(len(np.shape(derivant))+len(np.shape(f0)))),list(range(len(np.shape(derivant)),len(np.shape(derivant))+len(np.shape(f0))))+list(range(len(np.shape(derivant)))))
 
 
 class timer:

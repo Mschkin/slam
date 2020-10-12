@@ -120,11 +120,12 @@ def combine_images(I1, I2):
     return np.array([I1, I2])
 
 def combine_images_backward(dV_dinp_describe, dV_dinp_finder):
-    dV_dinp_describe = np.swapaxes(np.swapaxes(dV_dinp_describe, 1, 2), 2, 3) / 255
-    dV_dinp_finder = np.swapaxes(np.swapaxes(dV_dinp_finder, 1, 2), 2, 3) / 255 
+    #print(np.shape(dV_dinp_finder))
+    dV_dinp_describe = np.swapaxes(np.swapaxes(dV_dinp_describe, 2, 3), 3, 4) / 255
+    dV_dinp_finder = np.swapaxes(np.swapaxes(dV_dinp_finder, 2, 3), 3, 4) / 255 
     return dV_dinp_describe[0]+dV_dinp_finder[0],dV_dinp_describe[1]+dV_dinp_finder[1]
 
-def pipe_line_forward(I1, I2, sqrtlength, array_length, const_length,off_diagonal_number,nets,test=False):
+def pipe_line_forward(I1, I2,q_true,t_true, sqrtlength, array_length, const_length,off_diagonal_number,nets,test=False):
     filter_finder, filter_describe, full_describe, full_finder, compare_net = nets
     inp = combine_images(I1, I2)
     assert((2,3,((sqrtlength+2)+7)*2+10,((sqrtlength+2)+7)*2+10)==np.shape(inp))
@@ -158,9 +159,6 @@ def pipe_line_forward(I1, I2, sqrtlength, array_length, const_length,off_diagona
     yp = deepcopy(xp)
     assert ((sqrtlength, sqrtlength, 3) == np.shape(xp))
     assert ((sqrtlength, sqrtlength, 3) == np.shape(yp))
-    t_true = np.random.rand(3)
-    q_true = .1 * np.random.rand(3)
-    q_true = np.array([(1 - q_true@q_true)**.5] + list(q_true))
     hdx_p, hdy_p, hnd_raw_p, datalist = get_hessian_parts_wrapper(
         xp, yp,test=test)
     assert ((const_length,) == np.shape(datalist[0]))
@@ -168,9 +166,10 @@ def pipe_line_forward(I1, I2, sqrtlength, array_length, const_length,off_diagona
     assert ((array_length*9,) == np.shape(datalist[2]))
     V, dV_dg = dVdg_wrapper(xp, yp, weights, q_true,
                            t_true, hdx_p, hdy_p, hnd_raw_p, test=test)
-    return V,dV_dg,compare_imp, flow_parts, describe_parts, inp
+    return V,dV_dg,compare_imp, flow_parts, describe_parts, inp,dweights_dint1, dweights_dint2,dweights_dsim,dinterest_dstraight
 
-def pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp, sqrtlength, array_length, const_length, off_diagonal_number,test=False):
+def pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp,dweights_dint1, dweights_dint2,dweights_dsim,dinterest_dstraight,nets, sqrtlength, array_length, const_length, off_diagonal_number, test=False):
+    filter_finder, filter_describe, full_describe, full_finder, compare_net = nets
     assert ((array_length,) == np.shape(dV_dg))   
     dV_dint1 = np.einsum('ijkl,ijkl->ij', decompression(dV_dg,sqrtlength,off_diagonal_number), dweights_dint1)
     assert ((sqrtlength, sqrtlength) == np.shape(dV_dint1))
@@ -186,7 +185,6 @@ def pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp, sqrt
     dV_dstraight=np.reshape(dV_dstraight,(2, sqrtlength, sqrtlength,1, 9))
     assert ((2, sqrtlength, sqrtlength,1, 9) == np.shape(dV_dstraight))
     dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[-1]
-    print('flow parts:',np.shape(dV_dflow_parts))
     assert ((2,sqrtlength,sqrtlength,1,4,3,3) == np.shape(dV_dflow_parts))
     dV_ddescription1, dV_ddescription2 = prepare_weights_backward(dV_dcomp_imp,sqrtlength,off_diagonal_number)
     assert ((sqrtlength, sqrtlength, 9) == np.shape(dV_ddescription1))
@@ -198,13 +196,14 @@ def pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp, sqrt
     dV_dinp_describe=filter_describe.calculate_derivatives(inp, dV_ddescribe_weights)[-1]
     dV_dflow_weights = np.array([[fuse_image_parts(i,sqrtlength)] for i in dV_dflow_parts])
     assert ((2, 1, 4, sqrtlength+2, sqrtlength+2) == np.shape(dV_dflow_weights))
-    dV_dinp_finder = filter_finder.calculate_derivatives(inp, dV_dflow_weights)
+    dV_dinp_finder = filter_finder.calculate_derivatives(inp, dV_dflow_weights)[-1]
+    dV_dI1, dV_dI2 = combine_images_backward(dV_dinp_describe, dV_dinp_finder)
     compare_net.update_weights()
     full_finder.update_weights()
     full_describe.update_weights()
     filter_describe.update_weights()
     filter_finder.update_weights()
-    return V
+    return dV_dI1, dV_dI2
 
     
     
