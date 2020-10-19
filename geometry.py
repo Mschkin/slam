@@ -7,6 +7,7 @@ from sympy import LeviCivita
 import matplotlib.pyplot as plt
 # todo:
 # fyjkihg67uio87ygh
+# test if gradient descent is faster for matrix inversion
 # Check backprob uses updated or initial weights
 # consider bias in fully connected layer & filter
 # boundaries of correct convergence, 0.2 seems still to work
@@ -253,7 +254,7 @@ def init_R(zahl):
 def get_hessian_parts_R(xp, yp):
     hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
     hdy_R = 2 * np.einsum('ij,ij->i', yp, yp)
-    hnd_raw_R = np.einsum('ij,kl->ikjl', xp, yp)
+    hnd_raw_R = np.einsum('ij,kl->ikjl', yp, xp)
     return hdx_R, hdy_R, hnd_raw_R
 
 

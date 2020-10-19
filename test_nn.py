@@ -7,6 +7,8 @@ from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompressi
 from geometry2 import dVdg_function,cost_funtion
 from copy import deepcopy
 import quaternion
+import cv2
+import matplotlib.pyplot as plt
 
 
 def torch_apply_net(inp, filt, con,sqrtlength):
@@ -142,9 +144,31 @@ def test_pipeline():
     print(ndV_dI1[0, 0,:3])
     print(dV_dI1[0, 0,:3])
 
+def decompression2(mat, sqrtlength, constlength, off_diagonal_number):
+    mat_gen = (i for i in mat)
+    ret = np.zeros((constlength, constlength,3,3))
+    for i in range(sqrtlength):
+        for j in range(sqrtlength):
+            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+                for l in range(sqrtlength):
+                    for m in range(3):
+                        for n in range(3):
+                            ret[i * sqrtlength + j, k * sqrtlength + l, m, n] = next(mat_gen)
+    return ret
+
+def compare_c_py(c, py):
+    gen=(v for _,v in np.ndenumerate(c))
+    py_zeros = np.zeros_like(py)
+    for ind, _ in np.ndenumerate(py):
+        if - off_diagonal_number_test <= ind[0] // sqrtlength_test - ind[1] // sqrtlength_test <= off_diagonal_number_test:
+            py_zeros[ind] = next(gen)-py[ind]
+    return py_zeros
+
 def geometry_wrapper():
-    xp = np.einsum('ik,jk->ijk', np.stack((np.arange(sqrtlength_test), np.ones(
-        (sqrtlength_test)), (sqrtlength_test//2+1)*np.ones((sqrtlength_test))), axis=-1), np.stack((np.ones((sqrtlength_test)), np.arange(sqrtlength_test), np.ones((sqrtlength_test))), axis=-1)) - sqrtlength_test//2*1.
+    xp = np.einsum('ik,jk->jik', np.stack((np.arange(sqrtlength_test), np.ones(
+        (sqrtlength_test)), (sqrtlength_test // 2 + 1)*np.ones((sqrtlength_test))), axis=-1),
+         np.stack((np.ones((sqrtlength_test)), np.arange(sqrtlength_test), np.ones((sqrtlength_test))), axis=-1)) - sqrtlength_test // 2*1.
+    print(xp[0,6])
     yp = deepcopy(xp)
     assert ((sqrtlength_test, sqrtlength_test, 3) == np.shape(xp))
     assert ((sqrtlength_test, sqrtlength_test, 3) == np.shape(yp))
@@ -156,11 +180,38 @@ def geometry_wrapper():
     weights = np.random.rand(array_length_test)
     pweights = decompression(weights, sqrtlength_test, off_diagonal_number_test)
     pweights = np.reshape(pweights, (const_length_test, const_length_test))
-    V, dV_dweights = dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
-    pV = cost_funtion(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
+    V, dV_dweights, r_xc, r_yc, Hnd_inter_c,Hnd_R_c = dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
+    Hnd_inter_c = decompression(Hnd_inter_c, sqrtlength_test, 2 * off_diagonal_number_test)
+    Hnd_R_c = decompression(Hnd_R_c, sqrtlength_test, off_diagonal_number_test)
+    Hnd_inter_c = np.reshape(Hnd_inter_c, (const_length_test, const_length_test))
+    pV,rx,ry,Hnd_inter_p,Hnd_R_p,hnd_raw_phy = cost_funtion(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
     #npdV_dweights = numericdiff(cost_funtion, [np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights], 4)
     pdV_dweights = dVdg_function(np.reshape(xp,(const_length_test,3)), np.reshape(yp,(const_length_test,3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
-    ndV_dweights = numericdiff(dVdg_wrapper, [xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, True], 2) 
+    ndV_dweights = numericdiff(dVdg_wrapper, [xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, True], 2)
+    """
+    print(np.linalg.norm(r_xc - rx),const_length_test)
+    print(np.linalg.norm(r_yc - ry))
+    print(np.linalg.norm(Hnd_inter_p - Hnd_inter_c))
+    print(np.linalg.norm(hnd_raw_phy - decompression2(datalist[2], sqrtlength_test, const_length_test, off_diagonal_number_test)))
+    print(np.linalg.norm(compare_c_py(datalist[2],hnd_raw_phy)))
+    """
+    diff = compare_c_py(datalist[2], hnd_raw_phy)
+    print(diff[0, 7])
+    print(hnd_raw_phy[0, 0])
+    print(hnd_raw_phy[0, 6])
+    print(datalist[2][54:63])
+    print(hnd_raw_phy[0, 7])
+    print(datalist[2][63:72])
+    print(hnd_raw_phy[0, 8])
+    print(datalist[2][72:81])
+    print('norm:', np.linalg.norm(hnd_raw_phy))
+    print(np.sum( 255 * (np.sum(diff != 0, (2, 3), dtype=np.uint8) != 0)))
+    #cv2.imshow('phy', np.array(255 * (np.sum(diff != 0, (2, 3)) != 0),dtype=np.uint8))
+    #cv2.waitKey(0)
+    plt.imshow(np.sum(diff, (2, 3))!=0,cmap='gray')
+    plt.show()
+    """
+    print(np.linalg.norm(Hnd_R_p - np.reshape(Hnd_R_c, (const_length_test, const_length_test))))
     print(dV_dweights[:5])
     print(ndV_dweights[:5])
     print(pdV_dweights[0,:5])
@@ -172,7 +223,7 @@ def geometry_wrapper():
     print(np.shape(pdV_dweights))
     print(np.linalg.norm(dV_dweights- ndV_dweights))
     print(np.allclose(dV_dweights, ndV_dweights))
-    
+    """
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
 #test_pipeline()

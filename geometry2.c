@@ -149,7 +149,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
                     {
                         for (int l = 0; l < 3; l++)
                         {
-                            hnd_raw_R(blocky, y, blockx, x, k, l) = xp(blocky, y, k) * yp(blockx, x, l);
+                            hnd_raw_R(blocky, y, blockx, x, k, l) = yp(blocky, y, k) * xp(blockx, x, l);
                         }
                     }
                 }
@@ -165,7 +165,7 @@ void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R,
 }
 
 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                             double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y)
+                             double *hdx_R, double *hdy_R, double *hnd_raw_R, double *r_x, double *r_y, double *Hnd_R_inv_inter_debug, double *Hnd_R)
 {
     //printf(" q0 %f  t0 %f  weights %f  xp %f yp %f  hdx %f hdy %f hnd %f  rx %f  ry %f \n", q[0], t_true[0], weights_not_normed[0], xp[0], yp[0], hdx_R[0], hdy_R[0], hnd_raw_R[0], r_x[0], r_y[0]);
 
@@ -200,17 +200,17 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     }
 
     //   angle_mat = (np.cos(a) - 1) * np.einsum('i,j->ij', u, u)
-    //                + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)
+    //                - np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)],dtype=np.double), u)
     //                - np.cos(a) * np.eye(3)
-    double angle_mat[3][3] = {{(cos(a) - 1) * u[0] * u[0] - cos(a), (cos(a) - 1) * u[0] * u[1] + sin(a) * u[2], (cos(a) - 1) * u[0] * u[2] - sin(a) * u[1]},
-                              {(cos(a) - 1) * u[1] * u[0] - sin(a) * u[2], (cos(a) - 1) * u[1] * u[1] - cos(a), (cos(a) - 1) * u[1] * u[2] + sin(a) * u[0]},
-                              {(cos(a) - 1) * u[2] * u[0] + sin(a) * u[1], (cos(a) - 1) * u[2] * u[1] - sin(a) * u[0], (cos(a) - 1) * u[2] * u[2] - cos(a)}};
+    double angle_mat[3][3] = {{(cos(a) - 1) * u[0] * u[0] - cos(a), (cos(a) - 1) * u[0] * u[1] - sin(a) * u[2], (cos(a) - 1) * u[0] * u[2] + sin(a) * u[1]},
+                              {(cos(a) - 1) * u[1] * u[0] + sin(a) * u[2], (cos(a) - 1) * u[1] * u[1] - cos(a), (cos(a) - 1) * u[1] * u[2] - sin(a) * u[0]},
+                              {(cos(a) - 1) * u[2] * u[0] - sin(a) * u[1], (cos(a) - 1) * u[2] * u[1] + sin(a) * u[0], (cos(a) - 1) * u[2] * u[2] - cos(a)}};
 
     //Hdx_R = np.einsum('i,ij->i', hdx_R, weights)
     //Hdy_R = np.einsum('i,ji->i', hdy_R, weights)
     double *Hdx_R = malloc(const_length * sizeof(double));
     double *Hdy_R = malloc(const_length * sizeof(double));
-    double *Hnd_R = malloc(array_length * sizeof(double));
+    //double *Hnd_R = malloc(array_length * sizeof(double));
 #define Hdx_R(i, j) Hdx_R[sqrtlength * (i) + (j)]
 #define Hdy_R(i, j) Hdy_R[sqrtlength * (i) + (j)]
 #define Hnd_R(i, j, k, l) Hnd_R[indexs(i, k) * const_length + (j)*sqrtlength + (l)]
@@ -337,6 +337,10 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             }
         }
     }
+    for (int i = 0; i < big_array_length; i++)
+    {
+        Hnd_R_inv_inter_debug[i] = Hnd_R_inv_inter[i];
+    }
     sparse_invert(Hnd_R_inv_inter, L_y_inter, L_x);
 #define r_x(i, j) r_x[sqrtlength * (i) + (j)]
 #define r_y(i, j) r_y[sqrtlength * (i) + (j)]
@@ -362,7 +366,7 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     }
     free(Hdx_R);
     free(Hdy_R);
-    free(Hnd_R);
+    //free(Hnd_R);
     free(Hnd_R_inv_inter);
     free(L_x);
     free(L_y);
@@ -425,14 +429,14 @@ void rot(double v[3], double q[4], double q_con[4])
     return dVdg/ norm*/
 
 double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                       double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg)
+                       double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg, double *r_x, double *r_y, double *Hnd_R_inv_inter_debug, double *Hnd_R)
 {
     //hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
     //rx, ry, hnd_Rn, l_xn, l_yn, X, Z, Y = get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     //norm = np.sum(weights * weights)
-    double *r_x = (double *)malloc(const_length * sizeof(double));
-    double *r_y = (double *)malloc(const_length * sizeof(double));
-    double norm = fast_findanalytic_R_c(q_true, t_true, weights_not_normed, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y);
+    //double *r_x = (double *)malloc(const_length * sizeof(double));
+    //double *r_y = (double *)malloc(const_length * sizeof(double));
+    double norm = fast_findanalytic_R_c(q_true, t_true, weights_not_normed, xp, yp, hdx_R, hdy_R, hnd_raw_R, r_x, r_y, Hnd_R_inv_inter_debug, Hnd_R);
     double *x = malloc(const_length * 3 * sizeof(double));
     double *y = malloc(const_length * 3 * sizeof(double));
 #define xp(i, j, k) xp[3 * sqrtlength * (i) + 3 * (j) + (k)]
@@ -498,9 +502,9 @@ double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_n
     }
     V /= 2;
     free(x);
-    free(r_x);
+    //free(r_x);
     free(y);
-    free(r_y);
+    //free(r_y);
     return V;
 #undef x
 #undef y

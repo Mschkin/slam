@@ -31,17 +31,13 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     L_x = np.einsum('ij,i->i', weights, l_x)
     L_y = np.einsum('ji,i->i', weights, l_y)
     hnd_inter=((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
-    count=0
-    for i, c in np.ndenumerate(hnd_inter):
-        if c ** 2 > 10 ** -10:
-            count+=1
     inv = np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
     ry = np.diag(-1 / Hdy_R) @np.transpose(Hnd_R) @ rx - L_y / Hdy_R
     X = -inv
     Y = inv @ Hnd_R / Hdy_R
     Z = np.diag(1/Hdy_R) + np.diag(-1 / Hdy_R) @ np.transpose(Hnd_R) @ Y
-    return rx, ry
+    return rx, ry,hnd_inter,Hnd_R
 
 def r_with_reduced_weights(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     q = quaternion.as_float_array(q)
@@ -65,7 +61,7 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     global count
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    rx, ry,hnd_inter,Hnd_R= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     #print(max(rx-rxn), max(ry-ryn))
     count+=1
     #rx = np.random.rand(len(xp))
@@ -78,12 +74,12 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     for i,g in np.ndenumerate(weights):
         V += g * g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))
     #print(v)
-    return V/norm/2
+    return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    rx, ry,_,_= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     #print(rx,ry)
     #rx = np.random.rand(len(xp))
     #ry=rx
@@ -92,7 +88,7 @@ def dVdg_function(xp, yp, q_true, t_true, weights):
     dVdg = np.zeros_like(weights)
     dVdgn =np.zeros_like(weights)
     norm = np.sum(weights * weights)
-    V=2*cost_funtion(xp, yp, q_true, t_true, weights)
+    V= 2 * cost_funtion(xp, yp, q_true, t_true, weights)[0]
     for i, g in np.ndenumerate(weights):
         dVdgn[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))
         dVdg[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]])) - g * V

@@ -13,10 +13,10 @@ if __name__ == "__main__":
         ffi = FFI()
         c_header = """void sparse_invert(double *mat, double *v1, double *v2);
                 double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                                double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y);
+                                double * hdx_R, double * hdy_R, double * hnd_raw_R, double * r_x, double * r_y,double *Hnd_R_inv_inter_debug,double *Hnd_R);
                 void get_hessian_parts_R_c(double *xp, double *yp, double *hdx_R, double *hdy_R, double *hnd_raw_R);
                 double dVdg_function_c(double q_true[4], double t_true[3], double *weights_not_normed, double *xp, double *yp,
-                            double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg);
+                            double *hdx_R, double *hdy_R, double *hnd_raw_R, double *dVdg,double* r_x,double* r_y,double *Hnd_R_inv_inter_debug,double *Hnd_R);
                             void phase_space_view_c(double *straight, double *full_din_dstraight,double *pure_phase,int example_indices);
                 void c_back_phase_space(double *dinterest_dstraight, double *dV_dinterest, double *dV_dstraight,int example_indices, int cost_index);"""
         ffi.cdef(c_header)
@@ -159,15 +159,17 @@ def get_hessian_parts_wrapper(xp, yp, test=False):
 
 def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p,test=False):
     if test:
-        from test_constants import array_length_test ,const_length_test
+        from test_constants import array_length_test ,const_length_test,big_array_length_test
         from _geometry_test.lib import dVdg_function_c
         array_length = array_length_test
         const_length = const_length_test
+        big_array_length = big_array_length_test
     else:
-        from constants import array_length_real,const_length_real
+        from constants import array_length_real,const_length_real,big_array_length_real
         from _geometry2.lib import dVdg_function_c
         array_length = array_length_real
         const_length = const_length_real
+        big_array_length = big_array_length_real
     ffi = FFI()
     xp_c = deepcopy(xp)
     yp_c = deepcopy(yp)
@@ -187,9 +189,13 @@ def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p,test=F
     hnd_p = ffi.cast('double*', hnd_c.__array_interface__['data'][0])
     dVdg_c = np.zeros(array_length)
     dVdg_p = ffi.cast('double*', dVdg_c.__array_interface__['data'][0])
+    Hnd_R_inv_inter_debug_c = np.zeros(big_array_length)
+    Hnd_R_inv_inter_debug_p = ffi.cast('double*', Hnd_R_inv_inter_debug_c.__array_interface__['data'][0])
+    Hnd_R_c = np.zeros(array_length)
+    Hnd_R_p = ffi.cast('double*', Hnd_R_c.__array_interface__['data'][0])
     V_c = dVdg_function_c(q_truep, t_true_p, weights_p,
-                          xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p)
-    return V_c, dVdg_c
+                          xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p, r_xp, r_yp,Hnd_R_inv_inter_debug_p,Hnd_R_p)
+    return V_c, dVdg_c, r_xc, r_yc, Hnd_R_inv_inter_debug_c,Hnd_R_c
 
 
 class timer:
