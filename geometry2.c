@@ -9,8 +9,11 @@
 /*def ind2(y, x, l, b):
     m = min(y, b)
     n = max(0, y - l + b)
-    return (2 * b) * y + x - b * m + m * (m + 1) // 2 - n * (n + 1) // 2*/
-
+    return (2 * b) * y + x - b * m + m * (m + 1) // 2 - n * (n + 1) // 2
+    add extra triangle left top and bottom right to the matrix and then subtracted them
+    (2off+1)*y from lines before +x-(y-off) from this line -((m+1)*off-m/2(m+1)) from first extra triangle
+    - n/2(n+1) from second extra triangle
+*/
 int indexs(int y, int x)
 {
     int m = (y < off_diagonal_number) ? y : off_diagonal_number;

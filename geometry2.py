@@ -16,7 +16,7 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     else:
         u = np.array([0, 0, 0])
     angle_mat = (np.cos(a) - 1) * np.einsum('i,j->ij', u, u)\
-        + np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double), u)\
+        - np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double), u)\
         - np.cos(a) * np.eye(3)
     hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
     Hdx_R = np.einsum('i,ij->i', hdx_R, weights)

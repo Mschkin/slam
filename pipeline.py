@@ -66,8 +66,8 @@ def prepare_weights(description1, description2,sqrtlength,off_diagonal_number):
     compare_imp = []
     index = 0
     for i in range(sqrtlength):
-        for j in range(sqrtlength):
-            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+        for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+            for j in range(sqrtlength):
                 for l in range(sqrtlength):
                     compare_imp.append(np.concatenate((description1[i, j], description2[k, l])))
                     index += 1
@@ -78,8 +78,8 @@ def prepare_weights_backward(dV_dcomp_imp,sqrtlength,off_diagonal_number):
     dV_ddescription1 = np.zeros((sqrtlength, sqrtlength, 9))
     dV_ddescription2 = np.zeros((sqrtlength, sqrtlength, 9))
     for i in range(sqrtlength):
-        for j in range(sqrtlength):
-            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+        for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+            for j in range(sqrtlength):
                 for l in range(sqrtlength):
                     dV_ddescription1[i, j] += dV_dcomp_imp[index, 0,:9]
                     dV_ddescription2[k, l] += dV_dcomp_imp[index, 0, 9:]
@@ -94,8 +94,8 @@ def get_weigths(interest1, interest2, similarity,sqrtlength,off_diagonal_number)
     dweights_dint2 = np.zeros((sqrtlength, sqrtlength, sqrtlength, sqrtlength))
     dweights_dsim = []
     for i in range(sqrtlength):
-        for j in range(sqrtlength):
-            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+        for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number + 1)):
+            for j in range(sqrtlength):
                 for l in range(sqrtlength):
                     sim=next(similarity_gen)
                     weights.append(interest1[i, j] * interest2[k, l] * sim)
@@ -108,8 +108,8 @@ def decompression(mat,sqrtlength,off_diagonal_number):
     mat_gen = (i for i in mat)
     ret = np.zeros((sqrtlength, sqrtlength, sqrtlength, sqrtlength))
     for i in range(sqrtlength):
-        for j in range(sqrtlength):
-            for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+        for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
+            for j in range(sqrtlength):
                 for l in range(sqrtlength):
                     ret[i, j, k, l] = next(mat_gen)
     return ret
