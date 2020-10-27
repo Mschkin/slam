@@ -4,11 +4,12 @@ import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper,dVdg_wrapper,get_hessian_parts_wrapper
 from test_constants import *
 from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression
-from geometry2 import dVdg_function,cost_funtion
+from geometry2 import dVdg_function,cost_funtion,get_rs
 from copy import deepcopy
 import quaternion
 import cv2
 import matplotlib.pyplot as plt
+from geometry import get_hessian_parts_R
 
 
 def torch_apply_net(inp, filt, con,sqrtlength):
@@ -193,6 +194,13 @@ def geometry_wrapper():
     weights = np.random.rand(array_length_test)
     pweights = decompression(weights, sqrtlength_test, off_diagonal_number_test)
     pweights = np.reshape(pweights, (const_length_test, const_length_test))
+    hdx_phy,hdy_phy,hnd_raw_phy=get_hessian_parts_R(np.reshape(xp,(const_length_test,3)), np.reshape(yp,(const_length_test,3)))
+    _, _, _, _, drx, dry = get_rs(np.quaternion(*q_true), np.quaternion(*t_true), pweights, np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), hdx_phy, hdy_phy, hnd_raw_phy)
+    ndrx=numericdiff(get_rs,[np.quaternion(*q_true), np.quaternion(*t_true), pweights, np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), hdx_phy, hdy_phy, hnd_raw_phy],2)
+    print(np.allclose(ndrx, drx))
+    print(drx[0, 0,:5])
+    print(ndrx[0, 0,:5])
+    """
     V, dV_dweights, r_xc, r_yc, Hnd_inter_c,Hnd_R_c = dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
     Hnd_inter_c = decompression(Hnd_inter_c, sqrtlength_test, 2 * off_diagonal_number_test)
     Hnd_R_c = decompression(Hnd_R_c, sqrtlength_test, off_diagonal_number_test)
@@ -218,7 +226,7 @@ def geometry_wrapper():
     print(np.shape(pdV_dweights))
     print(np.linalg.norm(dV_dweights- ndV_dweights))
     print(np.allclose(dV_dweights, ndV_dweights))
-    
+    """
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
 #test_pipeline()

@@ -36,8 +36,25 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     ry = np.diag(-1 / Hdy_R) @np.transpose(Hnd_R) @ rx - L_y / Hdy_R
     X = -inv
     Y = inv @ Hnd_R / Hdy_R
-    Z = np.diag(1/Hdy_R) + np.diag(-1 / Hdy_R) @ np.transpose(Hnd_R) @ Y
-    return rx, ry,hnd_inter,Hnd_R
+    Z = np.diag(1 / Hdy_R) + np.diag(-1 / Hdy_R) @ np.transpose(Hnd_R) @ Y
+    print('zero:',np.diag(Hdx_R) @ rx + Hnd_R @ ry + L_x)
+    print('zero:', np.transpose(Hnd_R) @ rx + np.diag(Hdy_R) @ ry + L_y)
+    print(np.diag(Hdx_R) @ inv @ L_x - (Hnd_R / Hdy_R) @ np.transpose(Hnd_R) @ inv @ L_x + L_x)
+    #dr_dg = np.einsum('ik,k,k,j->ijk', X, hdx_R, rx, np.ones(len(xp))) +
+    drxdg = np.einsum('ij,j,j,k->ijk', X, hdx_R, -rx, np.ones_like(rx)) \
+        + np.einsum('ij,jk,k->ijk', X, hnd_R, -ry) \
+        + np.einsum('ik,jk,j->ijk', Y, hnd_R, -rx) \
+        + np.einsum('ik,k,k,j->ijk', Y, hdy_R, -ry, np.ones_like(rx)) \
+        - np.einsum('ij,j,k->ijk', X, l_x, np.ones_like(rx)) \
+        - np.einsum('ik,k,j->ijk', Y, l_y, np.ones_like(rx))
+    drydg = np.einsum('ji,j,j,k->ijk', Y, hdx_R, -rx, np.ones_like(rx)) \
+        + np.einsum('ji,jk,k->ijk', Y, hnd_R, -ry) \
+        + np.einsum('ik,jk,j->ijk', Z, hnd_R, -rx) \
+        + np.einsum('ik,k,k,j->ijk', Z, hdy_R, -ry, np.ones_like(rx)) \
+        - np.einsum('ji,j,k->ijk', Y, l_x, np.ones_like(rx)) \
+        - np.einsum('ik,k,j->ijk', Z, l_y, np.ones_like(rx))
+    return rx, ry, hnd_inter, Hnd_R
+    #drxdg,drydg
 
 def r_with_reduced_weights(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     q = quaternion.as_float_array(q)
@@ -71,9 +88,17 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     V = 0
     norm = np.sum(weights * weights)
     #print(norm)
+    zero_test1 = np.zeros_like(rx)
+    zero_test2 = np.zeros_like(ry)
+    zero_test3 = np.zeros_like(rx)
+    Hdx_R = np.einsum('i,ij->i', hdx_R, weights* weights)
     for i,g in np.ndenumerate(weights):
         V += g * g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))
-    #print(v)
+        zero_test1[i[0]] += g * g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ xp[i[0]]
+        zero_test2[i[1]] += g * g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ rotate(q_true, t_true, yp[i[1]])
+        zero_test3[i[0]] += g * g * x[i[0]]  @ xp[i[0]]
+    print(zero_test1, zero_test2)
+    print(np.diag(Hdx_R) @ rx - zero_test3)
     return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
@@ -145,3 +170,6 @@ print(a[0]-dVdg_function(xp, yp, q_true, t_true, weights))
 #print(np.shape(a),np.shape(drxdg))
 
 """
+x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(10)
+hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
+cost_funtion(xp, yp, q_true, t_true, weights)
