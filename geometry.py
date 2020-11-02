@@ -252,8 +252,8 @@ def init_R(zahl):
 
 
 def get_hessian_parts_R(xp, yp):
-    hdx_R = 2 * np.einsum('ij,ij->i', xp, xp)
-    hdy_R = 2 * np.einsum('ij,ij->i', yp, yp)
+    hdx_R = np.einsum('ij,ij->i', xp, xp)
+    hdy_R = np.einsum('ij,ij->i', yp, yp)
     hnd_raw_R = np.einsum('ij,kl->ikjl', yp, xp)
     return hdx_R, hdy_R, hnd_raw_R
 

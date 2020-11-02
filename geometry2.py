@@ -18,42 +18,41 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     angle_mat = (np.cos(a) - 1) * np.einsum('i,j->ij', u, u)\
         - np.sin(a) * np.einsum('ijk,k->ij', np.array([[[LeviCivita(i, j, k) for k in range(3)] for j in range(3)] for i in range(3)], dtype=np.double), u)\
         - np.cos(a) * np.eye(3)
-    hnd_R = 2 * np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
+    hnd_R = np.einsum('ijkl,kl->ij', hnd_raw_R, angle_mat)
     Hdx_R = np.einsum('j,ij->j', hdx_R, weights)
     Hdy_R = np.einsum('i,ij->i', hdy_R, weights)
     #Hnd_R= np.array([hnd_R[f(ind)] *weights(ind) for ind,_ in np.denumerate(weights)])
     Hnd_R = hnd_R * weights
     
-    l_x = 2*np.einsum('ij,j->i', xp, t)
+    l_x = np.einsum('ij,j->i', xp, t)
     l_y_vec = t * np.cos(a) + (u@t) * (1 - np.cos(a)) * \
         u + np.sin(a) * np.cross(t, u)
-    l_y = -2 * np.einsum('ij,j->i', yp, l_y_vec)
+    l_y = -np.einsum('ij,j->i', yp, l_y_vec)
     L_x = np.einsum('ij,j->j', weights, l_x)
     L_y = np.einsum('ij,i->i', weights, l_y)
-    hnd_inter=((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
-    inv = np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
-    rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
-    ry = np.diag(-1 / Hdy_R) @np.transpose(Hnd_R) @ rx - L_y / Hdy_R
+    hnd_inter=((Hnd_R / Hdx_R) @ np.transpose(Hnd_R) - np.diag(Hdy_R))
+    inv = np.linalg.inv((Hnd_R / Hdx_R) @ np.transpose(Hnd_R) - np.diag(Hdy_R))
+    Y = inv @ Hnd_R / Hdx_R
+    ry = inv @ L_y - Y @ L_x
+    rx = np.diag(-1 / Hdx_R) @ np.transpose(Hnd_R) @ ry - L_x / Hdx_R
+    #print('zero:',np.diag(Hdy_R) @ ry + Hnd_R @ rx + L_y)
+    #print('zero:', np.transpose(Hnd_R) @ ry + np.diag(Hdx_R) @ rx + L_x)
     X = -inv
-    Y = inv @ Hnd_R / Hdy_R
-    Z = np.diag(1 / Hdy_R) + np.diag(-1 / Hdy_R) @ np.transpose(Hnd_R) @ Y
-    print('zero:',np.diag(Hdx_R) @ rx + Hnd_R @ ry + L_x)
-    print('zero:', np.transpose(Hnd_R) @ rx + np.diag(Hdy_R) @ ry + L_y)
-    print(np.diag(Hdx_R) @ inv @ L_x - (Hnd_R / Hdy_R) @ np.transpose(Hnd_R) @ inv @ L_x + L_x)
+    Z = -np.diag(Hdx_R) @ inv * Hdy_R
     #dr_dg = np.einsum('ik,k,k,j->ijk', X, hdx_R, rx, np.ones(len(xp))) +
-    drxdg = np.einsum('ij,j,j,k->ijk', X, hdx_R, -rx, np.ones_like(rx)) \
-        + np.einsum('ij,jk,k->ijk', X, hnd_R, -ry) \
-        + np.einsum('ik,jk,j->ijk', Y, hnd_R, -rx) \
-        + np.einsum('ik,k,k,j->ijk', Y, hdy_R, -ry, np.ones_like(rx)) \
-        - np.einsum('ij,j,k->ijk', X, l_x, np.ones_like(rx)) \
-        - np.einsum('ik,k,j->ijk', Y, l_y, np.ones_like(rx))
-    drydg = np.einsum('ji,j,j,k->ijk', Y, hdx_R, -rx, np.ones_like(rx)) \
-        + np.einsum('ji,jk,k->ijk', Y, hnd_R, -ry) \
-        + np.einsum('ik,jk,j->ijk', Z, hnd_R, -rx) \
-        + np.einsum('ik,k,k,j->ijk', Z, hdy_R, -ry, np.ones_like(rx)) \
-        - np.einsum('ji,j,k->ijk', Y, l_x, np.ones_like(rx)) \
-        - np.einsum('ik,k,j->ijk', Z, l_y, np.ones_like(rx))
-    return rx, ry, hnd_inter, Hnd_R
+    drydg = np.einsum('ij,j,j,k->ijk', X, hdy_R, -ry, np.ones_like(rx)) \
+        + np.einsum('ij,jk,k->ijk', X, hnd_R, -rx) \
+        + np.einsum('ik,jk,j->ijk', Y, hnd_R, -ry) \
+        + np.einsum('ik,k,k,j->ijk', Y, hdx_R, -rx, np.ones_like(rx)) \
+        - np.einsum('ji,j,k->ijk', X, l_y, np.ones_like(rx)) \
+        - np.einsum('ik,k,j->ijk', Y, l_x, np.ones_like(rx))
+    drxdg = np.einsum('ji,j,j,k->ijk', Y, hdy_R, -ry, np.ones_like(rx)) \
+        + np.einsum('ij,jk,k->ijk', Y, hnd_R, -rx) \
+        + np.einsum('ik,jk,j->ijk', Z, hnd_R, -ry) \
+        + np.einsum('ik,k,k,j->ijk', Z, hdx_R, -rx, np.ones_like(rx)) \
+        - np.einsum('ji,j,k->ijk', Y, l_y, np.ones_like(rx)) \
+        - np.einsum('ik,k,j->ijk', Z, l_x, np.ones_like(rx))
+    return rx, ry, hnd_inter, Hnd_R,drxdg,drydg
     #drxdg,drydg
 
 def r_with_reduced_weights(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
@@ -78,7 +77,11 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     global count
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry,hnd_inter,Hnd_R= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    rx, ry, hnd_inter, Hnd_R, drxdg, drydg = get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    ndrx = numericdiff(get_rs, [q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R], 2,1)
+    print('ders', np.linalg.norm(drydg - ndrx))
+    print(ndrx[0, 0,:5])
+    print(drydg[0, 0,:5])
     #print(max(rx-rxn), max(ry-ryn))
     count+=1
     #rx = np.random.rand(len(xp))
@@ -96,13 +99,13 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     for i,g in np.ndenumerate(weights):
         V += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]]))
         zero_test1[i[1]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ xp[i[1]]
-        zero_test2[i[0]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ rotate(q_true, t_true, yp[i[0]])
-        zero_test3[i[1]] += 2 * g * g * x[i[1]] @ xp[i[1]]
-        zero_test4[i[1]] += 2 * g * g * rotate(q_true, np.quaternion(0, 0, 0, 0), y[i[0]]) @ xp[i[1]]
+        zero_test2[i[0]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ rotate(q_true, np.quaternion(0, 0, 0, 0), yp[i[0]])
+        zero_test3[i[1]] += g * g * x[i[1]] @ xp[i[1]]
+        zero_test4[i[1]] += g * g * rotate(q_true, np.quaternion(0, 0, 0, 0), y[i[0]]) @ xp[i[1]]
     print(zero_test1, zero_test2)
     print(np.diag(Hdx_R) @ rx - zero_test3)
-    print(np.transpose(Hnd_R) @ ry , zero_test4)
-    return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R
+    print((np.transpose(Hnd_R) @ ry) +(zero_test4/norm))
+    return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R,drxdg,drydg
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
