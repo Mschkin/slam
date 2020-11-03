@@ -2,7 +2,7 @@ import numpy as np
 from geometry import fast_findanalytic_R,get_hessian_parts_R,init_R
 import quaternion
 from sympy import LeviCivita
-from library import numericdiff
+from library import numericdiff,numericdiff_acc
 
 count=1
 
@@ -38,20 +38,23 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     #print('zero:',np.diag(Hdy_R) @ ry + Hnd_R @ rx + L_y)
     #print('zero:', np.transpose(Hnd_R) @ ry + np.diag(Hdx_R) @ rx + L_x)
     X = -inv
-    Z = -np.diag(Hdx_R) @ inv * Hdy_R
-    #dr_dg = np.einsum('ik,k,k,j->ijk', X, hdx_R, rx, np.ones(len(xp))) +
-    drydg = np.einsum('ij,j,j,k->ijk', X, hdy_R, -ry, np.ones_like(rx)) \
+    Z = np.diag(1 / Hdx_R) @ (np.eye(len(Hdx_R)) - np.transpose(Hnd_R) @ Y)
+    drydG = np.einsum('ij,j,j,k->ijk', X, hdy_R, -ry, np.ones_like(rx)) \
         + np.einsum('ij,jk,k->ijk', X, hnd_R, -rx) \
         + np.einsum('ik,jk,j->ijk', Y, hnd_R, -ry) \
         + np.einsum('ik,k,k,j->ijk', Y, hdx_R, -rx, np.ones_like(rx)) \
         - np.einsum('ji,j,k->ijk', X, l_y, np.ones_like(rx)) \
         - np.einsum('ik,k,j->ijk', Y, l_x, np.ones_like(rx))
-    drxdg = np.einsum('ji,j,j,k->ijk', Y, hdy_R, -ry, np.ones_like(rx)) \
-        + np.einsum('ij,jk,k->ijk', Y, hnd_R, -rx) \
+    drxdG = np.einsum('ji,j,j,k->ijk', Y, hdy_R, -ry, np.ones_like(rx)) \
+        + np.einsum('ji,jk,k->ijk', Y, hnd_R, -rx) \
         + np.einsum('ik,jk,j->ijk', Z, hnd_R, -ry) \
         + np.einsum('ik,k,k,j->ijk', Z, hdx_R, -rx, np.ones_like(rx)) \
         - np.einsum('ji,j,k->ijk', Y, l_y, np.ones_like(rx)) \
         - np.einsum('ik,k,j->ijk', Z, l_x, np.ones_like(rx))
+    dG_dg = 2 / np.sum(weights_not_normd * weights_not_normd) * np.einsum('im,jn,ij->ijmn', np.eye(len(xp)), np.eye(len(xp)), weights_not_normd)\
+            - 2 / np.sum(weights_not_normd * weights_not_normd)** 2 * np.einsum('ij,mn->ijmn', weights_not_normd ** 2, weights_not_normd)
+    drxdg = np.einsum('ijk,jkmn->imn', drxdG, dG_dg)
+    drydg = np.einsum('ijk,jkmn->imn', drydG, dG_dg)
     return rx, ry, hnd_inter, Hnd_R,drxdg,drydg
     #drxdg,drydg
 
@@ -78,10 +81,6 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
     rx, ry, hnd_inter, Hnd_R, drxdg, drydg = get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
-    ndrx = numericdiff(get_rs, [q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R], 2,1)
-    print('ders', np.linalg.norm(drydg - ndrx))
-    print(ndrx[0, 0,:5])
-    print(drydg[0, 0,:5])
     #print(max(rx-rxn), max(ry-ryn))
     count+=1
     #rx = np.random.rand(len(xp))
@@ -102,15 +101,12 @@ def cost_funtion(xp, yp, q_true, t_true, weights):
         zero_test2[i[0]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ rotate(q_true, np.quaternion(0, 0, 0, 0), yp[i[0]])
         zero_test3[i[1]] += g * g * x[i[1]] @ xp[i[1]]
         zero_test4[i[1]] += g * g * rotate(q_true, np.quaternion(0, 0, 0, 0), y[i[0]]) @ xp[i[1]]
-    print(zero_test1, zero_test2)
-    print(np.diag(Hdx_R) @ rx - zero_test3)
-    print((np.transpose(Hnd_R) @ ry) +(zero_test4/norm))
     return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R,drxdg,drydg
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry,_,_= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
+    rx, ry,_,_,_,_= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     #print(rx,ry)
     #rx = np.random.rand(len(xp))
     #ry=rx
@@ -121,8 +117,8 @@ def dVdg_function(xp, yp, q_true, t_true, weights):
     norm = np.sum(weights * weights)
     V= 2 * cost_funtion(xp, yp, q_true, t_true, weights)[0]
     for i, g in np.ndenumerate(weights):
-        dVdgn[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]]))
-        dVdg[i] = g * (x[i[0]] - rotate(q_true, t_true, y[i[1]])) @ (x[i[0]] - rotate(q_true, t_true, y[i[1]])) - g * V
+        dVdgn[i] = g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]]))
+        dVdg[i] = g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]])) - g * V
     return dVdg/ norm
 
 
@@ -178,4 +174,13 @@ print(a[0]-dVdg_function(xp, yp, q_true, t_true, weights))
 """
 x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(10)
 hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-cost_funtion(xp, yp, q_true, t_true, weights)
+r = cost_funtion(xp, yp, q_true, t_true, weights)
+dvdg = dVdg_function(xp, yp, q_true, t_true, weights)
+dvdgn = numericdiff(cost_funtion, [xp, yp, q_true, t_true, weights], 4)
+dvdgn_acc = numericdiff_acc(cost_funtion, [xp, yp, q_true, t_true, weights], 4)
+print(np.shape(dvdg), np.shape(dvdgn), np.shape(dvdgn_acc))
+print(dvdg[:5,:5])
+print(dvdgn[:5,:5])
+print(dvdgn_acc[:5,:5])
+print(np.linalg.norm(dvdg-dvdgn),np.linalg.norm(dvdg-dvdgn_acc))
+

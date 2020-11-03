@@ -1,5 +1,5 @@
 import torch
-from library import modelbuilder, numericdiff, timer
+from library import modelbuilder, numericdiff, timer,numericdiff_acc
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper,dVdg_wrapper,get_hessian_parts_wrapper
 from test_constants import *
@@ -115,7 +115,8 @@ def numericdiff_test():
     x = np.random.rand(10)
     y = np.exp(x) * np.eye(10)
     ny = numericdiff(np.exp, [x], 0)
-    return np.allclose(y,ny)
+    ny_acc = numericdiff_acc(np.exp, [x], 0)
+    return np.allclose(y, ny) and np.allclose(y, ny_acc)
 
 assert numericdiff_test()
 

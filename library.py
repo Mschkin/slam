@@ -372,6 +372,43 @@ def numericdiff(f, input_list, index,output_index=0):  # , tim):
             derivative[s] = res
     return np.einsum(derivative,list(range(len(np.shape(derivant))+len(np.shape(f0)))),list(range(len(np.shape(derivant)),len(np.shape(derivant))+len(np.shape(f0))))+list(range(len(np.shape(derivant)))))
 
+def numericdiff_acc(f, input_list, index,output_index=0):  # , tim):
+    # get it running for quaternions
+    tim=timer()
+    is_tuple = False
+    f0 = f(*input_list)
+    if type(f0) is tuple:
+        f0 = f0[output_index]
+        is_tuple=True
+    h = 1 / 10**5.3
+    derivant = input_list[index]
+    derivative = np.zeros(
+                          np.shape(derivant)+np.shape(f0), dtype=np.double)
+    if not is_tuple:
+        for s, _ in np.ndenumerate(derivant):
+            derivant_hp = deepcopy(derivant) * 1.0
+            derivant_hm = deepcopy(derivant) * 1.0
+            derivant_hp[s] += h/2
+            derivant_hm[s] -= h/2
+            res = (f(*(input_list[:index] + [derivant_hp] +
+                    input_list[index + 1:])) - f(*(input_list[:index] + [derivant_hm] +
+                    input_list[index + 1:]))) / h
+            derivative[s] = res
+    else:
+        for s, _ in np.ndenumerate(derivant):
+            derivant_hp = deepcopy(derivant) * 1.0
+            derivant_hm = deepcopy(derivant) * 1.0
+            derivant_hp[s] += h/2
+            derivant_hm[s] -= h/2
+            res = (f(*(input_list[:index] + [derivant_hp] +
+                    input_list[index + 1:]))[output_index] - f(*(input_list[:index] + [derivant_hm] +
+                    input_list[index + 1:]))[output_index]) / h
+            derivative[s] = res
+    return np.einsum(derivative,list(range(len(np.shape(derivant))+len(np.shape(f0)))),list(range(len(np.shape(derivant)),len(np.shape(derivant))+len(np.shape(f0))))+list(range(len(np.shape(derivant)))))
+
+
+
+
 
 class timer:
     lastcall = 0

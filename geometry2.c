@@ -227,8 +227,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             {
                 for (int x = 0; x < sqrtlength; x++)
                 {
-                    Hdx_R(blocky, y) += weights(blocky, y, blockx, x) * hdx_R(blocky, y);
-                    Hdy_R(blocky, y) += weights(blockx, x, blocky, y) * hdy_R(blocky, y);
+                    Hdx_R(blocky, y) += weights(blockx, x, blocky, y) * hdx_R(blocky, y);
+                    Hdy_R(blocky, y) += weights(blocky, y, blockx, x) * hdy_R(blocky, y);
                     Hnd_R(blocky, y, blockx, x) = 0;
                     for (int m = 0; m < 3; m++)
                     {
@@ -268,9 +268,9 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
             {
                 for (int x = 0; x < sqrtlength; x++)
                 {
-                    Hnd_R_divided(blocky, y, blockx, x) = Hnd_R(blocky, y, blockx, x) / Hdy_R(blockx, x);
-                    L_x(blocky, y) += weights(blocky, y, blockx, x);
-                    L_y(blocky, y) += weights(blockx, x, blocky, y);
+                    Hnd_R_divided(blocky, y, blockx, x) = Hnd_R(blocky, y, blockx, x) / Hdx_R(blockx, x);
+                    L_y(blocky, y) += weights(blocky, y, blockx, x);
+                    L_x(blocky, y) += weights(blockx, x, blocky, y);
                 }
             }
             L_x(blocky, y) *= 2 * (xp(blocky, y, 0) * t_true[0] + xp(blocky, y, 1) * t_true[1] + xp(blocky, y, 2) * t_true[2]);
@@ -280,10 +280,13 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
 
     //inv=np.linalg.inv((Hnd_R / Hdy_R) @ np.transpose(Hnd_R) - np.diag(Hdx_R))
     //rx = -inv @ (Hnd_R / Hdy_R) @ L_y + inv @ L_x
+    //inv = np.linalg.inv((Hnd_R / Hdx_R) @np.transpose(Hnd_R) - np.diag(Hdy_R))
+    //Y = inv @Hnd_R / Hdx_R
+    //ry = inv @L_y - Y @L_x
     double *Hnd_R_inv_inter = calloc(big_array_length, sizeof(double));
 #define Hnd_R_inv_inter(i, j, k, l) Hnd_R_inv_inter[indexb(i, k) * const_length + (j)*sqrtlength + (l)]
-    double *L_y_inter = calloc(const_length, sizeof(double));
-#define L_y_inter(i, j) L_y_inter[(i)*sqrtlength + (j)]
+    double *L_x_inter = calloc(const_length, sizeof(double));
+#define L_x_inter(i, j) L_x_inter[(i)*sqrtlength + (j)]
     int Hnd_inv_index;
     int Hnd_indexy;
     int Hnd_indexx;
@@ -330,12 +333,12 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     {
         for (int y = 0; y < sqrtlength; y++)
         {
-            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdx_R(blocky, y);
+            Hnd_R_inv_inter(blocky, y, blocky, y) -= Hdy_R(blocky, y);
             for (int blockx = (blocky - off_diagonal_number < 0) ? 0 : blocky - off_diagonal_number; blockx < sqrtlength && (blockx < blocky + off_diagonal_number + 1); blockx++)
             {
                 for (int x = 0; x < sqrtlength; x++)
                 {
-                    L_y_inter(blocky, y) += Hnd_R(blocky, y, blockx, x) * L_y(blockx, x) / Hdy_R(blockx, x);
+                    L_x_inter(blocky, y) += Hnd_R(blocky, y, blockx, x) * L_x(blockx, x) / Hdx_R(blockx, x);
                 }
             }
         }
@@ -344,7 +347,8 @@ double fast_findanalytic_R_c(double q[4], double t_true[3], double *weights_not_
     {
         Hnd_R_inv_inter_debug[i] = Hnd_R_inv_inter[i];
     }
-    sparse_invert(Hnd_R_inv_inter, L_y_inter, L_x);
+    sparse_invert(Hnd_R_inv_inter, L_x_inter, L_y);
+    //########################################################################################################################################
 #define r_x(i, j) r_x[sqrtlength * (i) + (j)]
 #define r_y(i, j) r_y[sqrtlength * (i) + (j)]
     for (size_t i = 0; i < const_length; i++)
