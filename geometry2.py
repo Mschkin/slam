@@ -35,6 +35,7 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     Y = inv @ Hnd_R / Hdx_R
     ry = inv @ L_y - Y @ L_x
     rx = np.diag(-1 / Hdx_R) @ np.transpose(Hnd_R) @ ry - L_x / Hdx_R
+    """
     #print('zero:',np.diag(Hdy_R) @ ry + Hnd_R @ rx + L_y)
     #print('zero:', np.transpose(Hnd_R) @ ry + np.diag(Hdx_R) @ rx + L_x)
     X = -inv
@@ -55,8 +56,8 @@ def get_rs(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
             - 2 / np.sum(weights_not_normd * weights_not_normd)** 2 * np.einsum('ij,mn->ijmn', weights_not_normd ** 2, weights_not_normd)
     drxdg = np.einsum('ijk,jkmn->imn', drxdG, dG_dg)
     drydg = np.einsum('ijk,jkmn->imn', drydG, dG_dg)
-    return rx, ry, hnd_inter, Hnd_R,drxdg,drydg
-    #drxdg,drydg
+    """
+    return rx, ry
 
 def r_with_reduced_weights(q, t, weights_not_normd, xp, yp, hdx_R, hdy_R, hnd_raw_R):
     q = quaternion.as_float_array(q)
@@ -77,47 +78,26 @@ def rotate(q, t, point):
     return quaternion.as_float_array(q * point * np.conjugate(q) - t)[1:]
 
 def cost_funtion(xp, yp, q_true, t_true, weights):
-    global count
-    #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry, hnd_inter, Hnd_R, drxdg, drydg = get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
-    #print(max(rx-rxn), max(ry-ryn))
-    count+=1
-    #rx = np.random.rand(len(xp))
-    #ry=rx
+    rx, ry = get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     x = np.transpose(rx * np.transpose(xp))
     y = np.transpose(ry * np.transpose(yp))
     V = 0
     norm = np.sum(weights * weights)
-    #print(norm)
-    zero_test1 = np.zeros_like(rx)
-    zero_test2 = np.zeros_like(ry)
-    zero_test3 = np.zeros_like(rx)
-    zero_test4 = np.zeros_like(rx)
-    Hdx_R = np.einsum('j,ij->j', hdx_R, weights* weights)
     for i,g in np.ndenumerate(weights):
         V += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]]))
-        zero_test1[i[1]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ xp[i[1]]
-        zero_test2[i[0]] += g * g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ rotate(q_true, np.quaternion(0, 0, 0, 0), yp[i[0]])
-        zero_test3[i[1]] += g * g * x[i[1]] @ xp[i[1]]
-        zero_test4[i[1]] += g * g * rotate(q_true, np.quaternion(0, 0, 0, 0), y[i[0]]) @ xp[i[1]]
-    return V/norm/2,rx,ry,hnd_inter,Hnd_R,hnd_raw_R,drxdg,drydg
+    return V / norm / 2, rx, ry
 
 def dVdg_function(xp, yp, q_true, t_true, weights):
     #np.random.seed(12679)
     hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
-    rx, ry,_,_,_,_= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
-    #print(rx,ry)
-    #rx = np.random.rand(len(xp))
-    #ry=rx
+    rx, ry= get_rs(q_true, t_true, weights, xp, yp, hdx_R, hdy_R, hnd_raw_R)
     x = np.transpose(rx * np.transpose(xp))
     y = np.transpose(ry * np.transpose(yp))
     dVdg = np.zeros_like(weights)
-    dVdgn =np.zeros_like(weights)
     norm = np.sum(weights * weights)
     V= 2 * cost_funtion(xp, yp, q_true, t_true, weights)[0]
     for i, g in np.ndenumerate(weights):
-        dVdgn[i] = g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]]))
         dVdg[i] = g * (x[i[1]] - rotate(q_true, t_true, y[i[0]])) @ (x[i[1]] - rotate(q_true, t_true, y[i[0]])) - g * V
     return dVdg/ norm
 
@@ -171,7 +151,7 @@ print(a[0]-dVdg_function(xp, yp, q_true, t_true, weights))
 #print(np.linalg.norm(a[0]-drydg))
 #print(np.shape(a),np.shape(drxdg))
 
-"""
+
 x, y, b, q_true, t_true, weights, xp, yp, _ = init_R(10)
 hdx_R, hdy_R, hnd_raw_R = get_hessian_parts_R(xp, yp)
 r = cost_funtion(xp, yp, q_true, t_true, weights)
@@ -183,4 +163,4 @@ print(dvdg[:5,:5])
 print(dvdgn[:5,:5])
 print(dvdgn_acc[:5,:5])
 print(np.linalg.norm(dvdg-dvdgn),np.linalg.norm(dvdg-dvdgn_acc))
-
+"""

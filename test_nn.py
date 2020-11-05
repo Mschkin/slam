@@ -3,7 +3,7 @@ from library import modelbuilder, numericdiff, timer,numericdiff_acc
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper,dVdg_wrapper,get_hessian_parts_wrapper
 from test_constants import *
-from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression
+from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression,get_weigths
 from geometry2 import dVdg_function,cost_funtion,get_rs
 from copy import deepcopy
 import quaternion
@@ -195,40 +195,64 @@ def geometry_wrapper():
     weights = np.random.rand(array_length_test)
     pweights = decompression(weights, sqrtlength_test, off_diagonal_number_test)
     pweights = np.reshape(pweights, (const_length_test, const_length_test))
-    hdx_phy,hdy_phy,hnd_raw_phy=get_hessian_parts_R(np.reshape(xp,(const_length_test,3)), np.reshape(yp,(const_length_test,3)))
-    _, _, _, _, drx, dry = get_rs(np.quaternion(*q_true), np.quaternion(*t_true), pweights, np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), hdx_phy, hdy_phy, hnd_raw_phy)
-    ndrx=numericdiff(get_rs,[np.quaternion(*q_true), np.quaternion(*t_true), pweights, np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), hdx_phy, hdy_phy, hnd_raw_phy],2)
-    print(np.allclose(ndrx, drx))
-    print(drx[0, 0,:5])
-    print(ndrx[0, 0,:5])
-    """
-    V, dV_dweights, r_xc, r_yc, Hnd_inter_c,Hnd_R_c = dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
-    Hnd_inter_c = decompression(Hnd_inter_c, sqrtlength_test, 2 * off_diagonal_number_test)
-    Hnd_R_c = decompression(Hnd_R_c, sqrtlength_test, off_diagonal_number_test)
-    Hnd_R_c = np.reshape(Hnd_R_c, (const_length_test, const_length_test))
-    Hnd_inter_c = np.reshape(Hnd_inter_c, (const_length_test, const_length_test))
-    pV,rx,ry,Hnd_inter_p,Hnd_R_p,hnd_raw_phy = cost_funtion(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
-    npdV_dweights = numericdiff(cost_funtion, [np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights], 4)
-    pdV_dweights = dVdg_function(np.reshape(xp,(const_length_test,3)), np.reshape(yp,(const_length_test,3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
-    ndV_dweights = numericdiff(dVdg_wrapper, [xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, True], 2)
-    print(np.linalg.norm(r_xc - rx),const_length_test)
-    print(np.linalg.norm(r_yc - ry))
-    print(np.linalg.norm(Hnd_inter_p - Hnd_inter_c))
-    print(np.linalg.norm(compare_c_py2(datalist[2],hnd_raw_phy)))
-    print(np.linalg.norm(Hnd_R_p - Hnd_R_c))
-    print(dV_dweights[:5])
-    print(ndV_dweights[:5])
-    print(pdV_dweights[0,:5])
-    print(npdV_dweights[0,:5])
-    print(np.max(np.abs(pdV_dweights - npdV_dweights)))
-    print(np.max(np.abs(dV_dweights - ndV_dweights)))
-    print(np.max(np.abs(pdV_dweights)),np.max(np.abs(dV_dweights)),np.max(np.abs(ndV_dweights)))
-    print(V,pV)
-    print(np.shape(pdV_dweights))
-    print(np.linalg.norm(dV_dweights- ndV_dweights))
-    print(np.allclose(dV_dweights, ndV_dweights))
-    """
+    hdx_phy, hdy_phy, hnd_raw_phy = get_hessian_parts_R(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)))
+    V,dV_dg, rx, ry = dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
+    pV, prx, pry = cost_funtion(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
+    assert np.allclose(V, pV)
+    assert np.allclose(rx, prx)
+    assert np.allclose(ry, pry)
+    pdV_dweights = dVdg_function(np.reshape(xp, (const_length_test, 3)), np.reshape(yp, (const_length_test, 3)), np.quaternion(*q_true), np.quaternion(*t_true), pweights)
+    cdV_dweights = decompression(dV_dg, sqrtlength_test, off_diagonal_number_test)
+    ndV_dweights = numericdiff_acc(dVdg_wrapper, [xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p, True], 2)
+    assert np.allclose(cdV_dweights, np.reshape(pdV_dweights, (sqrtlength_test, sqrtlength_test, sqrtlength_test, sqrtlength_test)))
+    assert np.allclose(dV_dg, ndV_dweights)
+
+
+def similarity_interest(interest, similarity,q_true,t_true,sqrtlength,off_diagonal_number,array_length):
+    weights, dweights_dint1, dweights_dint2, dweights_dsim = get_weigths(interest[0], interest[1], similarity,sqrtlength,off_diagonal_number)
+    assert ((array_length,) == np.shape(weights))
+    assert ((sqrtlength,sqrtlength, sqrtlength, sqrtlength) == np.shape(dweights_dint1))
+    assert ((sqrtlength,sqrtlength, sqrtlength, sqrtlength) == np.shape(dweights_dint2))
+    assert ((array_length, ) == np.shape(dweights_dsim))
+    xp = np.einsum('ik,jk->ijk', np.stack((np.arange(sqrtlength), np.ones(
+        (sqrtlength)), (sqrtlength//2+1)*np.ones((sqrtlength))), axis=-1), np.stack((np.ones((sqrtlength)), np.arange(sqrtlength), np.ones((sqrtlength))), axis=-1)) - sqrtlength//2*1.
+    yp = deepcopy(xp)
+    assert ((sqrtlength, sqrtlength, 3) == np.shape(xp))
+    assert ((sqrtlength, sqrtlength, 3) == np.shape(yp))
+    hdx_p, hdy_p, hnd_raw_p, datalist = get_hessian_parts_wrapper(
+        xp, yp,test=True)
+    assert ((sqrtlength*sqrtlength,) == np.shape(datalist[0]))
+    assert ((sqrtlength*sqrtlength,) == np.shape(datalist[1]))
+    assert ((array_length * 9,) == np.shape(datalist[2]))
+    V, dV_dg,_,_ = dVdg_wrapper(xp, yp, weights, q_true,
+                           t_true, hdx_p, hdy_p, hnd_raw_p, test=True)
+    assert ((array_length,) == np.shape(dV_dg))   
+    dV_dint1 = np.einsum('ijkl,ijkl->ij', decompression(dV_dg,sqrtlength,off_diagonal_number), dweights_dint1)
+    assert ((sqrtlength, sqrtlength) == np.shape(dV_dint1))
+    dV_dint2 = np.einsum('ijkl,ijkl->kl', decompression(dV_dg,sqrtlength,off_diagonal_number), dweights_dint2)
+    assert ((sqrtlength, sqrtlength) == np.shape(dV_dint2))
+    dV_dsim = dV_dg * dweights_dsim
+    assert ((array_length,) == np.shape(dV_dsim))
+    return V, np.array([dV_dint1, dV_dint2]), dV_dsim
+
+def similarity_interest_test():
+    interest = np.random.rand(2, sqrtlength_test, sqrtlength_test)
+    similarity = np.random.rand(array_length_test, 1)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    V, dV_dint, dV_dsim = similarity_interest(interest, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dint = numericdiff_acc(similarity_interest, [interest, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
+    ndV_dsim = numericdiff_acc(similarity_interest, [interest, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 1)
+    assert np.allclose(ndV_dint, dV_dint)
+    assert np.allclose(ndV_dsim[:, 0], dV_dsim)
+
+    
+    
+    
+
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
 #test_pipeline()
 geometry_wrapper()
+similarity_interest_test()

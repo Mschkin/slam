@@ -105,7 +105,7 @@ def get_weigths(interest1, interest2, similarity,sqrtlength,off_diagonal_number)
     return np.array(weights), dweights_dint1, dweights_dint2, np.array(dweights_dsim)
 
 def decompression(mat,sqrtlength,off_diagonal_number):
-    mat_gen = (i for i in mat)
+    mat_gen = (i for _,i in np.ndenumerate(mat))
     ret = np.zeros((sqrtlength, sqrtlength, sqrtlength, sqrtlength))
     for i in range(sqrtlength):
         for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
