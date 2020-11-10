@@ -67,7 +67,7 @@ def apply_compare(sqrtlength):
 
 
 
-assert(apply_compare(sqrtlength_test))
+
 
 def phase_space():
     from library import phasespace_view,back_phase_space
@@ -109,7 +109,7 @@ def phase_space():
     return np.allclose(pure_phase_c[0], python_pure1) and np.allclose(din_ds_c[0], small_py1) and np.allclose(pure_phase_c[1], python_pure2) and np.allclose(din_ds_c[1], small_py2) and np.allclose(c_back[0, 0], python_back1) and np.allclose(c_back[1, 0], python_back2) and np.allclose(c_back[0, 1], python_back3) and np.allclose(c_back[1, 1], python_back4)
     
    
-assert (phase_space())
+
 
 def numericdiff_test():
     x = np.random.rand(10)
@@ -118,7 +118,7 @@ def numericdiff_test():
     ny_acc = numericdiff_acc(np.exp, [x], 0)
     return np.allclose(y, ny) and np.allclose(y, ny_acc)
 
-assert numericdiff_test()
+
 
 
 def pipe_line_forward_wrapper(I1, I2,q_true,t_true, filter1, filter2, filter3, filter4, fullyconneted, compare):
@@ -247,6 +247,49 @@ def similarity_interest_test():
     assert np.allclose(ndV_dint, dV_dint)
     assert np.allclose(ndV_dsim[:, 0], dV_dsim)
 
+def straight_sim(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
+    interest, di_ds = phase_space_view_wrapper(straight, (2,), test=True)
+    V, dV_dint, dV_dsim = similarity_interest(interest, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_dstraight = back_phase_space_wrapper(dV_dint, di_ds, (2,), (1,), test=True)
+    return V, dV_dstraight, dV_dsim
+    
+def straight_sim_test():
+    straight = np.random.rand(2, sqrtlength_test, sqrtlength_test, 9)
+    similarity = np.random.rand(array_length_test, 1)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    V, dV_dstraight, dV_dsim = straight_sim(straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dstraight = numericdiff_acc(straight_sim, [straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
+    ndV_dsim = numericdiff_acc(straight_sim, [straight, similarity, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 1)
+    assert np.allclose(ndV_dstraight, dV_dstraight[:, 0])
+    assert np.allclose(ndV_dsim[:, 0], dV_dsim)
+    
+def flow_parts_sim(flow_parts, similarity,modelclass_full,fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
+    full_finder = modelclass_full([None, fullyconneted, None])
+    straight = full_finder(flow_parts)
+    V, dV_dstraight, dV_dsim = straight_sim(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[-1]
+    return V, dV_dflow_parts, full_finder.derivative_values[1], dV_dsim
+    
+def flow_parts_sim_test():
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    flow_parts = np.random.rand(2, sqrtlength_test, sqrtlength_test, 4, 3, 3)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    V, dV_dflow_parts,dV_dfully, dV_dsim = flow_parts_sim(flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dflow_parts = numericdiff_acc(flow_parts_sim, [flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
+    ndV_dsim = numericdiff_acc(flow_parts_sim, [flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 1)
+    ndV_dfully = numericdiff_acc(flow_parts_sim, [flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 3)
+    assert np.allclose(np.sum(dV_dfully, axis=(0, 1, 2, 3)), ndV_dfully)
+    assert np.allclose(dV_dflow_parts[:,:,:, 0], ndV_dflow_parts)
+    assert np.allclose(ndV_dsim[:, 0], dV_dsim)
+
+    
     
     
     
@@ -254,5 +297,10 @@ def similarity_interest_test():
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
 #test_pipeline()
+flow_parts_sim_test()
+straight_sim_test()
 geometry_wrapper()
 similarity_interest_test()
+assert(apply_compare(sqrtlength_test))
+assert (phase_space())
+assert numericdiff_test()
