@@ -3,7 +3,7 @@ from library import modelbuilder, numericdiff, timer,numericdiff_acc
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper,dVdg_wrapper,get_hessian_parts_wrapper
 from test_constants import *
-from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression,get_weigths
+from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression,get_weigths,splitt_img,fuse_image_parts,prepare_weights,prepare_weights_backward
 from geometry2 import dVdg_function,cost_funtion,get_rs
 from copy import deepcopy
 import quaternion
@@ -247,32 +247,30 @@ def similarity_interest_test():
     assert np.allclose(ndV_dint, dV_dint)
     assert np.allclose(ndV_dsim[:, 0], dV_dsim)
 
-def straight_sim(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
+def straight_function(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
     interest, di_ds = phase_space_view_wrapper(straight, (2,), test=True)
     V, dV_dint, dV_dsim = similarity_interest(interest, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
     dV_dstraight = back_phase_space_wrapper(dV_dint, di_ds, (2,), (1,), test=True)
-    return V, dV_dstraight, dV_dsim
+    return V, dV_dstraight,dV_dsim
     
-def straight_sim_test():
+def straight_test():
     straight = np.random.rand(2, sqrtlength_test, sqrtlength_test, 9)
     similarity = np.random.rand(array_length_test, 1)
     t_true = np.random.rand(3)
     q_true = .1 * np.random.rand(3)
     q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
-    V, dV_dstraight, dV_dsim = straight_sim(straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
-    ndV_dstraight = numericdiff_acc(straight_sim, [straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
-    ndV_dsim = numericdiff_acc(straight_sim, [straight, similarity, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 1)
+    V, dV_dstraight,dV_dsim = straight_function(straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dstraight = numericdiff_acc(straight_function, [straight, similarity,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
     assert np.allclose(ndV_dstraight, dV_dstraight[:, 0])
-    assert np.allclose(ndV_dsim[:, 0], dV_dsim)
     
-def flow_parts_sim(flow_parts, similarity,modelclass_full,fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
+def flow_parts_function(flow_parts, similarity,modelclass_full,fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
     full_finder = modelclass_full([None, fullyconneted, None])
     straight = full_finder(flow_parts)
-    V, dV_dstraight, dV_dsim = straight_sim(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    V, dV_dstraight,dV_dsim = straight_function(straight, similarity, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
     dV_dflow_parts = full_finder.calculate_derivatives(flow_parts, dV_dstraight)[-1]
-    return V, dV_dflow_parts, full_finder.derivative_values[1], dV_dsim
+    return V,dV_dsim, dV_dflow_parts, full_finder.derivative_values[1]
     
-def flow_parts_sim_test():
+def flow_parts_test():
     modelclass_full = modelbuilder(
         [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
     flow_parts = np.random.rand(2, sqrtlength_test, sqrtlength_test, 4, 3, 3)
@@ -281,24 +279,158 @@ def flow_parts_sim_test():
     t_true = np.random.rand(3)
     q_true = .1 * np.random.rand(3)
     q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
-    V, dV_dflow_parts,dV_dfully, dV_dsim = flow_parts_sim(flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
-    ndV_dflow_parts = numericdiff_acc(flow_parts_sim, [flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
-    ndV_dsim = numericdiff_acc(flow_parts_sim, [flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 1)
-    ndV_dfully = numericdiff_acc(flow_parts_sim, [flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 3)
+    V, dV_dsim,dV_dflow_parts,dV_dfully = flow_parts_function(flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dflow_parts = numericdiff_acc(flow_parts_function, [flow_parts, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
+    ndV_dfully = numericdiff_acc(flow_parts_function, [flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test], 3)
     assert np.allclose(np.sum(dV_dfully, axis=(0, 1, 2, 3)), ndV_dfully)
     assert np.allclose(dV_dflow_parts[:,:,:, 0], ndV_dflow_parts)
-    assert np.allclose(ndV_dsim[:, 0], dV_dsim)
 
+def split_function(flow_weights, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):
+    flow_parts = np.array([splitt_img(i,sqrtlength) for i in flow_weights])
+    V, dV_dsim,dV_dflow_parts, _ = flow_parts_function(flow_parts, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_dflow_weights = np.array([[fuse_image_parts(i,sqrtlength)] for i in dV_dflow_parts])
+    return V, dV_dflow_weights,dV_dsim
     
+def split_test():
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    flow_weights = np.random.rand(2, 4, sqrtlength_test + 2, sqrtlength_test + 2)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    V, dV_dflow_weights,dV_dsim = split_function(flow_weights, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test)
+    ndV_dflow_weights = numericdiff_acc(split_function, [flow_weights, similarity,modelclass_full,fullyconneted,q_true,t_true, sqrtlength_test, off_diagonal_number_test,array_length_test], 0)
+    assert np.allclose(ndV_dflow_weights, dV_dflow_weights[:, 0])
+    
+def filter_finder_function(inp, similarity,modelclass_convolve,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    filter_finder = modelclass_convolve([filter1, None, filter2, None,
+                                        filter3, None, filter4, None])
+    flow_weights=filter_finder(inp)
+    V, dV_dflow_weights,dV_dsim = split_function(flow_weights, similarity, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_dinp = filter_finder.calculate_derivatives(inp, dV_dflow_weights)[-1]
+    return V, dV_dinp,dV_dsim, filter_finder.derivative_values[0], filter_finder.derivative_values[2], filter_finder.derivative_values[4], filter_finder.derivative_values[6]
     
     
     
 
+def filter_finder_test():
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)
+    filter2 = np.random.rand(3, 6, 6, 3)
+    filter3 = np.random.rand(2, 5, 5, 3)
+    filter4 = np.random.rand(4, 4, 4, 2)
+    inp=np.random.rand(2,3,((sqrtlength_test+2)+7)*2+10,((sqrtlength_test+2)+7)*2+10)
+    flow_weights = np.random.rand(2, 4, sqrtlength_test + 2, sqrtlength_test + 2)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [inp, similarity, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V, dV_dinp,dV_dsim, dV_dfilter1, dV_dfilter2, dV_dfilter3, dV_dfilter4 = filter_finder_function(*function_input)
+    print('here')
+    ndV_dinp = numericdiff_acc(filter_finder_function, function_input, 0)
+    print('here')
+    ndV_dfilter1 = numericdiff_acc(filter_finder_function, function_input, 3)
+    ndV_dfilter2 = numericdiff_acc(filter_finder_function, function_input, 4)
+    ndV_dfilter3 = numericdiff_acc(filter_finder_function, function_input, 5)
+    ndV_dfilter4 = numericdiff_acc(filter_finder_function, function_input, 6)
+    print(np.shape(dV_dinp), np.shape(ndV_dinp))
+    print(np.shape(dV_dfilter1),np.shape(ndV_dfilter1))
+    assert np.allclose(dV_dinp[:,0], ndV_dinp)
+    assert np.allclose(np.sum(dV_dfilter1, axis=(0, 1)), ndV_dfilter1)
+    assert np.allclose(np.sum(dV_dfilter2, axis=(0, 1)), ndV_dfilter2)
+    assert np.allclose(np.sum(dV_dfilter3, axis=(0, 1)), ndV_dfilter3)
+    assert np.allclose(np.sum(dV_dfilter4, axis=(0, 1)), ndV_dfilter4)
+
+def compare_function(inp, compare_input,compare_class,compare_full,modelclass_convolve,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    compare_net = compare_class([compare_full, None])
+    similarity = compare_net(compare_input)
+    V, dV_dinp,dV_dsim,_,_,_,_ = filter_finder_function(inp, similarity, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_dcompare_input = compare_net.calculate_derivatives(compare_input, dV_dsim)[-1]
+    return V, dV_dinp, dV_dcompare_input, compare_net.derivative_values[0]
+    
+ 
+
+def compare_test():
+    compare_class = modelbuilder(
+        [('fully_connected', (1, 18)), ('sigmoid', None)], (18,), (array_length_test,), (1,), (1,))
+    compare_full = np.random.rand(1, 18)
+    compare_input=np.random.rand(array_length_test,18)
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)
+    filter2 = np.random.rand(3, 6, 6, 3)
+    filter3 = np.random.rand(2, 5, 5, 3)
+    filter4 = np.random.rand(4, 4, 4, 2)
+    inp=np.random.rand(2,3,((sqrtlength_test+2)+7)*2+10,((sqrtlength_test+2)+7)*2+10)
+    flow_weights = np.random.rand(2, 4, sqrtlength_test + 2, sqrtlength_test + 2)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [inp, compare_input,compare_class,compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V, dV_dinp, dV_dcompare_input,dV_dcompare_full = compare_function(*function_input)
+    print('here')
+    ndV_dcompare_input = numericdiff_acc(compare_function, function_input, 1)
+    print('here')
+    dV_dcompare_full = numericdiff_acc(compare_function, function_input, 3)
+    print(np.shape(dV_dcompare_input), np.shape(ndV_dcompare_input))
+    print(np.shape(dV_dcompare_full),np.shape(ndV_dcompare_full))
+    assert np.allclose(dV_dcompare_input, ndV_dcompare_input)
+    assert np.allclose(np.sum(dV_dcompare_full, axis=(0, 1)), ndV_dcompare_full)
+    
+def compare_input_function(inp, description,compare_class,compare_full,modelclass_convolve,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    compare_input = prepare_weights(description[0], description[1], sqrtlength, off_diagonal_number)
+    V, dV_dinp, dV_dcompare_input, _ = compare_function(inp, compare_input, compare_class, compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_ddescription = prepare_weights_backward(dV_dcomp_imp, sqrtlength, off_diagonal_number)
+    return V, dV_dinp, dV_ddescription
+    
+def prepare_weights_test():
+    compare_class = modelbuilder(
+        [('fully_connected', (1, 18)), ('sigmoid', None)], (18,), (array_length_test,), (1,), (1,))
+    compare_full = np.random.rand(1, 18)
+    description = np.random.rand(2, sqrtlength_test, sqrtlength_test, 9)
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)
+    filter2 = np.random.rand(3, 6, 6, 3)
+    filter3 = np.random.rand(2, 5, 5, 3)
+    filter4 = np.random.rand(4, 4, 4, 2)
+    inp=np.random.rand(2,3,((sqrtlength_test+2)+7)*2+10,((sqrtlength_test+2)+7)*2+10)
+    flow_weights = np.random.rand(2, 4, sqrtlength_test + 2, sqrtlength_test + 2)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [inp, description,compare_class,compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V, dV_dinp, dV_ddescription = compare_input_function(*function_input)
+    print('here')
+    ndV_ddescription = numericdiff_acc(compare_input_function, function_input, 1)
+    print('here')
+    print(np.shape(dV_ddescription),np.shape(ndV_ddescription))
+    assert np.allclose(dV_ddescription, ndV_ddescription)
+    
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
 #test_pipeline()
-flow_parts_sim_test()
-straight_sim_test()
+prepare_weights_test()
+compare_test()
+filter_finder_test()
+split_test()
+flow_parts_test()
+straight_test()
 geometry_wrapper()
 similarity_interest_test()
 assert(apply_compare(sqrtlength_test))
