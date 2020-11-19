@@ -1,9 +1,9 @@
 import torch
-from library import modelbuilder, numericdiff, timer,numericdiff_acc
+from library import modelbuilder, numeric_check, timer
 import numpy as np
 from compile2 import phase_space_view_wrapper,back_phase_space_wrapper,dVdg_wrapper,get_hessian_parts_wrapper
 from test_constants import *
-from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression,get_weigths,splitt_img,fuse_image_parts,prepare_weights,prepare_weights_backward
+from pipeline import pipe_line_forward, get_nets, pipe_line_backward,decompression,get_weigths,splitt_img,fuse_image_parts,prepare_weights,prepare_weights_backward,combine_images,combine_images_backward
 from geometry2 import dVdg_function,cost_funtion,get_rs
 from copy import deepcopy
 import quaternion
@@ -111,13 +111,12 @@ def phase_space():
    
 
 
-def numericdiff_test():
+def numericcheck_test():
     x = np.random.rand(10)
     y = np.exp(x) * np.eye(10)
-    ny = numericdiff(np.exp, [x], 0)
-    ny_acc = numericdiff_acc(np.exp, [x], 0)
-    return np.allclose(y, ny) and np.allclose(y, ny_acc)
-
+    assert numeric_check(np.exp, [x], 0, y, tuple([]), tuple([]))
+    assert numeric_check(np.exp, [x], 0, y, tuple([]), tuple([]), order=1)
+    assert numeric_check(np.exp, [x], 0, y, tuple([]), tuple([]), probabilistic=False)
 
 
 
@@ -127,12 +126,13 @@ def pipe_line_forward_wrapper(I1, I2,q_true,t_true, filter1, filter2, filter3, f
     return np.array([r[0]])
 
 def test_pipeline():
-    filter1 = np.random.randn(3, 6, 6, 3) / 300
-    filter2 = np.random.randn(3, 6, 6, 3) / 300
-    filter3 = np.random.randn(2, 5, 5, 3) / 150
-    filter4 = np.random.randn(4, 4, 4, 2) / 150
-    fullyconneted = np.random.randn(9, 36) / 300
-    compare=np.random.randn(1, 18) / 18
+    start_value_reducer = 19
+    filter1 = np.random.randn(3, 6, 6, 3) / start_value_reducer
+    filter2 = np.random.randn(3, 6, 6, 3) / start_value_reducer
+    filter3 = np.random.randn(2, 5, 5, 3) / start_value_reducer
+    filter4 = np.random.randn(4, 4, 4, 2) / start_value_reducer
+    fullyconneted = np.random.randn(9, 36) / start_value_reducer
+    compare=np.random.randn(1, 18) / start_value_reducer
     nets = get_nets(sqrtlength_test, array_length_test, filter1, filter2, filter3, filter4, fullyconneted, compare)
     I1 = np.random.randint(0, 255, ((sqrtlength_test+2+7)*2+10, (sqrtlength_test+2+7)*2+10, 3))
     I2 = np.random.randint(0, 255, ((sqrtlength_test + 2 + 7) * 2 + 10, (sqrtlength_test + 2 + 7) * 2 + 10, 3))
@@ -140,8 +140,12 @@ def test_pipeline():
     q_true = .1 * np.random.rand(3)
     q_true = np.array([(1 - q_true@q_true)**.5] + list(q_true))
     V, dV_dg, compare_imp, flow_parts, describe_parts, inp,dweights_dint1, dweights_dint2,dweights_dsim,dinterest_dstraight = pipe_line_forward(I1, I2,q_true,t_true, sqrtlength_test, array_length_test, const_length_test, off_diagonal_number_test, nets, True)
-    dV_dI1, dV_dI2 = pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp,dweights_dint1, dweights_dint2,dweights_dsim,dinterest_dstraight, nets, sqrtlength_test, array_length_test, const_length_test, off_diagonal_number_test, test=True)
-    ndV_dI1=numericdiff(pipe_line_forward_wrapper, [I1, I2,q_true,t_true, filter1, filter2, filter3, filter4, fullyconneted, compare], 0)
+    dV_dI1, dV_dI2 = pipe_line_backward(dV_dg, compare_imp, flow_parts, describe_parts, inp, dweights_dint1, dweights_dint2, dweights_dsim, dinterest_dstraight, nets, sqrtlength_test, array_length_test, const_length_test, off_diagonal_number_test, test=True)
+    print(np.linalg.norm(dV_dI1))
+    ndV_dI1=numericdiff_acc(pipe_line_forward_wrapper, [I1, I2,q_true,t_true, filter1, filter2, filter3, filter4, fullyconneted, compare], 0)
+    print(np.linalg.norm(ndV_dI1))
+    print(np.shape(dV_dI1), np.shape(ndV_dI1))
+    print(np.linalg.norm(ndV_dI1-dV_dI1))
     print(np.allclose(ndV_dI1, dV_dI1))
     print(ndV_dI1[0, 0,:3])
     print(dV_dI1[0, 0,:3])
@@ -333,9 +337,9 @@ def filter_finder_test():
     q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
     function_input = [inp, similarity, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
     V, dV_dinp,dV_dsim, dV_dfilter1, dV_dfilter2, dV_dfilter3, dV_dfilter4 = filter_finder_function(*function_input)
-    print('here')
+    print('filter_finder_test')
     ndV_dinp = numericdiff_acc(filter_finder_function, function_input, 0)
-    print('here')
+    print('filter_finder_test')
     ndV_dfilter1 = numericdiff_acc(filter_finder_function, function_input, 3)
     ndV_dfilter2 = numericdiff_acc(filter_finder_function, function_input, 4)
     ndV_dfilter3 = numericdiff_acc(filter_finder_function, function_input, 5)
@@ -379,19 +383,19 @@ def compare_test():
     q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
     function_input = [inp, compare_input,compare_class,compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
     V, dV_dinp, dV_dcompare_input,dV_dcompare_full = compare_function(*function_input)
-    print('here')
+    print('compare_test')
     ndV_dcompare_input = numericdiff_acc(compare_function, function_input, 1)
-    print('here')
-    dV_dcompare_full = numericdiff_acc(compare_function, function_input, 3)
+    print('compare_test')
+    ndV_dcompare_full = numericdiff_acc(compare_function, function_input, 3)
     print(np.shape(dV_dcompare_input), np.shape(ndV_dcompare_input))
     print(np.shape(dV_dcompare_full),np.shape(ndV_dcompare_full))
-    assert np.allclose(dV_dcompare_input, ndV_dcompare_input)
+    assert np.allclose(dV_dcompare_input[:, 0], ndV_dcompare_input)
     assert np.allclose(np.sum(dV_dcompare_full, axis=(0, 1)), ndV_dcompare_full)
     
 def compare_input_function(inp, description,compare_class,compare_full,modelclass_convolve,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
     compare_input = prepare_weights(description[0], description[1], sqrtlength, off_diagonal_number)
     V, dV_dinp, dV_dcompare_input, _ = compare_function(inp, compare_input, compare_class, compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
-    dV_ddescription = prepare_weights_backward(dV_dcomp_imp, sqrtlength, off_diagonal_number)
+    dV_ddescription = prepare_weights_backward(dV_dcompare_input, sqrtlength, off_diagonal_number)
     return V, dV_dinp, dV_ddescription
     
 def prepare_weights_test():
@@ -416,15 +420,159 @@ def prepare_weights_test():
     q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
     function_input = [inp, description,compare_class,compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
     V, dV_dinp, dV_ddescription = compare_input_function(*function_input)
-    print('here')
+    print('prepare_weights_test')
     ndV_ddescription = numericdiff_acc(compare_input_function, function_input, 1)
-    print('here')
+    print('prepare_weights_test')
     print(np.shape(dV_ddescription),np.shape(ndV_ddescription))
     assert np.allclose(dV_ddescription, ndV_ddescription)
     
+def full_describe_function(inp, describe_parts,full_describe_para, compare_class,compare_full,modelclass_convolve,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    full_describe = modelclass_full([None, full_describe_para, None])
+    description = full_describe(describe_parts)
+    V, dV_dinp, dV_ddescription = compare_input_function(inp, description, compare_class, compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_ddescribe_parts = full_describe.calculate_derivatives(describe_parts, dV_ddescription)[-1]
+    return V, dV_dinp, dV_ddescribe_parts, full_describe.derivative_values[1]
+
+def full_describe_test():
+    compare_class = modelbuilder(
+        [('fully_connected', (1, 18)), ('sigmoid', None)], (18,), (array_length_test,), (1,), (1,))
+    compare_full = np.random.rand(1, 18)
+    describe_parts = np.random.rand(2,sqrtlength_test,sqrtlength_test,4,3,3)
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)
+    filter2 = np.random.rand(3, 6, 6, 3)
+    filter3 = np.random.rand(2, 5, 5, 3)
+    filter4 = np.random.rand(4, 4, 4, 2)
+    inp=np.random.rand(2,3,((sqrtlength_test+2)+7)*2+10,((sqrtlength_test+2)+7)*2+10)
+    flow_weights = np.random.rand(2, 4, sqrtlength_test + 2, sqrtlength_test + 2)
+    similarity = np.random.rand(array_length_test, 1)
+    fullyconneted = np.random.rand(9, 36)
+    full_describe_para = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [inp, describe_parts,full_describe_para,compare_class,compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V,dV_dinp, dV_ddescribe_parts,dV_dfull_describe_para = full_describe_function(*function_input)
+    print('full_describe_test')
+    ndV_ddescribe_parts = numericdiff_acc(full_describe_function, function_input, 1)
+    ndV_dfull_describe_para = numericdiff_acc(full_describe_function, function_input, 2)
+    print('full_describe_test')
+    print(np.shape(dV_ddescribe_parts), np.shape(ndV_ddescribe_parts))
+    print(np.shape(dV_dfull_describe_para),np.shape(ndV_dfull_describe_para))
+    assert np.allclose(dV_ddescribe_parts[:,:,:,0], ndV_ddescribe_parts)
+    assert np.allclose(np.sum(dV_dfull_describe_para, axis=(0, 1, 2, 3)), ndV_dfull_describe_para)
+
+def filter_describe_function(inp,inp2,full_describe_para, compare_class,compare_full,modelclass_convolve,dfilter1,dfilter2,dfilter3,dfilter4,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    filter_describe = modelclass_convolve([dfilter1, None, dfilter2, None,
+                                              dfilter3, None, dfilter4, None])
+    describe_weights = filter_describe(inp2)
+    describe_parts = np.array([splitt_img(i, sqrtlength) for i in describe_weights])
+    V, dV_dinp, dV_ddescribe_parts,_ = full_describe_function(inp, describe_parts,full_describe_para, compare_class, compare_full, modelclass_convolve, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length)
+    dV_ddescribe_weights = np.array([fuse_image_parts(i, sqrtlength) for i in dV_ddescribe_parts])
+    dV_dinp_describe = filter_describe.calculate_derivatives(inp2, dV_ddescribe_weights)[-1]
+    return np.array([V]), dV_dinp, dV_dinp_describe, filter_describe.derivative_values[0], filter_describe.derivative_values[2], filter_describe.derivative_values[4], filter_describe.derivative_values[6]
+
+def filter_describe_test():
+    compare_class = modelbuilder(
+        [('fully_connected', (1, 18)), ('sigmoid', None)], (18,), (array_length_test,), (1,), (1,))
+    compare_full = np.random.rand(1, 18)
+    describe_parts = np.random.rand(2, sqrtlength_test, sqrtlength_test, 4, 3, 3)
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)
+    filter2 = np.random.rand(3, 6, 6, 3)
+    filter3 = np.random.rand(2, 5, 5, 3)
+    filter4 = np.random.rand(4, 4, 4, 2)
+    dfilter1 = np.random.rand(3, 6, 6, 3)
+    dfilter2 = np.random.rand(3, 6, 6, 3)
+    dfilter3 = np.random.rand(2, 5, 5, 3)
+    dfilter4 = np.random.rand(4, 4, 4, 2)
+    inp = np.random.rand(2, 3, ((sqrtlength_test + 2) + 7) * 2 + 10, ((sqrtlength_test + 2) + 7) * 2 + 10)
+    inp2 = inp
+    fullyconneted = np.random.rand(9, 36)
+    full_describe_para = np.random.rand(9, 36)
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [inp,inp2,full_describe_para, compare_class,compare_full,modelclass_convolve,dfilter1,dfilter2,dfilter3,dfilter4,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V, dV_dinp, dV_dinp_describe, dV_ddfilter1, dV_ddfilter2, dV_ddfilter3, dV_ddfilter4 = filter_describe_function(*function_input)
+    print('filter_describe_test')
+    ndV_dinp_describe = numericdiff_acc(filter_describe_function, function_input, 1)
+    ndV_ddfilter1 = numericdiff_acc(filter_describe_function, function_input, 6)
+    ndV_ddfilter2 = numericdiff_acc(filter_describe_function, function_input, 7)
+    ndV_ddfilter3 = numericdiff_acc(filter_describe_function, function_input, 8)
+    ndV_ddfilter4 = numericdiff_acc(filter_describe_function, function_input, 9)
+    print('filter_describe_test')
+    print(np.shape(dV_dinp_describe), np.shape(ndV_dinp_describe))
+    print(np.shape(dV_ddfilter1),np.shape(ndV_ddfilter1))
+    assert np.allclose(dV_dinp_describe[:, 0], ndV_dinp_describe)
+    assert np.allclose(np.sum(dV_ddfilter1, axis=(0, 1)), ndV_ddfilter1)
+    assert np.allclose(np.sum(dV_ddfilter2, axis=(0, 1)), ndV_ddfilter2)
+    assert np.allclose(np.sum(dV_ddfilter3, axis=(0, 1)), ndV_ddfilter3)
+    assert np.allclose(np.sum(dV_ddfilter4, axis=(0, 1)), ndV_ddfilter4)
+
+def combine_function(I1,I2,full_describe_para, compare_class,compare_full,modelclass_convolve,dfilter1,dfilter2,dfilter3,dfilter4,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length):    
+    inp = combine_images(I1, I2)
+    function_input=[inp, inp, full_describe_para, compare_class, compare_full, modelclass_convolve, dfilter1, dfilter2, dfilter3, dfilter4, filter1, filter2, filter3, filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength, off_diagonal_number, array_length]
+    V, dV_dinp, dV_dinp_describe, dV_ddfilter1, dV_ddfilter2, dV_ddfilter3, dV_ddfilter4 = filter_describe_function(*function_input)
+    dV_dI1, dV_dI2 = combine_images_backward(dV_dinp_describe, dV_dinp)
+    assert numeric_check(filter_describe_function, function_input, 0, dV_dinp, (2,), (1,), more_information=True, derivative_size=10 ** -8)
+    assert numeric_check(filter_describe_function, function_input, 1, dV_dinp_describe, (2,), (1,), more_information=True, derivative_size=10 ** -8)
+    assert numeric_check(filter_describe_function, function_input, 6, dV_ddfilter1, (2,), (1,),sum_example_indices=True, more_information=True, derivative_size=10 ** -8)
+    assert numeric_check(filter_describe_function, function_input, 7, dV_ddfilter2, (2,), (1,),sum_example_indices=True, more_information=True, derivative_size=10 ** -8)
+    assert numeric_check(filter_describe_function, function_input, 8, dV_ddfilter3, (2,), (1,),sum_example_indices=True, more_information=True, derivative_size=10 ** -8)
+    assert numeric_check(filter_describe_function, function_input, 9, dV_ddfilter4, (2,), (1,),sum_example_indices=True, more_information=True, derivative_size=10 ** -8)
+    return np.array([V]), dV_dI1, dV_dI2
+    
+def combine_test():
+    compare_class = modelbuilder(
+        [('fully_connected', (1, 18)), ('sigmoid', None)], (18,), (array_length_test,), (1,), (1,))
+    start_value_reducer=18
+    compare_full = np.random.rand(1, 18)/start_value_reducer
+    describe_parts = np.random.rand(2,sqrtlength_test,sqrtlength_test,4,3,3)
+    modelclass_convolve = modelbuilder([('filter', (3, 6, 6, 3)), ('softmax', None), ('filter', (3, 6, 6, 3)), ('pooling', (1, 2, 2)), ('filter', (2, 5, 5, 3)), (
+        'softmax', None), ('filter', (4, 4, 4, 2)), ('softmax', None)], (3, ((sqrtlength_test+2)+7)*2+10, ((sqrtlength_test+2)+7)*2+10),(2,),(1,),(4,sqrtlength_test+2,sqrtlength_test+2))
+    modelclass_full = modelbuilder(
+        [('view', (3, 36)), ('fully_connected', (9, 36)), ('sigmoid', None)], (4, 3, 3), (2, sqrtlength_test, sqrtlength_test), (1,), (9,))
+    filter1 = np.random.rand(3, 6, 6, 3)/start_value_reducer
+    filter2 = np.random.rand(3, 6, 6, 3)/start_value_reducer
+    filter3 = np.random.rand(2, 5, 5, 3)/start_value_reducer
+    filter4 = np.random.rand(4, 4, 4, 2)/start_value_reducer
+    dfilter1 = np.random.rand(3, 6, 6, 3)/start_value_reducer
+    dfilter2 = np.random.rand(3, 6, 6, 3)/start_value_reducer
+    dfilter3 = np.random.rand(2, 5, 5, 3)/start_value_reducer
+    dfilter4 = np.random.rand(4, 4, 4, 2)/start_value_reducer
+    I1 = np.random.randint(0, 255, ((sqrtlength_test + 2 + 7) * 2 + 10, (sqrtlength_test + 2 + 7) * 2 + 10, 3))
+    I2 = np.random.randint(0, 255, ((sqrtlength_test + 2 + 7) * 2 + 10, (sqrtlength_test + 2 + 7) * 2 + 10, 3))
+    fullyconneted = np.random.rand(9, 36)/start_value_reducer
+    full_describe_para = np.random.rand(9, 36)/start_value_reducer
+    t_true = np.random.rand(3)
+    q_true = .1 * np.random.rand(3)
+    q_true = np.array([(1 - q_true @ q_true)** .5] + list(q_true))
+    function_input = [I1,I2,full_describe_para, compare_class,compare_full,modelclass_convolve,dfilter1,dfilter2,dfilter3,dfilter4,filter1,filter2,filter3,filter4, modelclass_full, fullyconneted, q_true, t_true, sqrtlength_test, off_diagonal_number_test, array_length_test]
+    V, dV_dI1, dV_dI2 = combine_function(*function_input)
+    print(np.linalg.norm(dV_dI1))
+    print('combine_test')
+    assert numeric_check(combine_function, function_input, 0, dV_dI1, tuple([]), (1,), more_information=True,derivative_size=10**-8)
+    assert numeric_check(combine_function, function_input, 1, dV_dI2, tuple([]), (1,),more_information=True,derivative_size=10**-8)
+    
+
+
+
+
 
 #pipe_line(I1, I2,sqrtlength_test,array_length_test,const_length_test,off_diagonal_number_test,test=True)
+numericcheck_test()
+np.random.seed(1267)
 #test_pipeline()
+combine_test()
+filter_describe_test()
+full_describe_test()
 prepare_weights_test()
 compare_test()
 filter_finder_test()
@@ -435,4 +583,3 @@ geometry_wrapper()
 similarity_interest_test()
 assert(apply_compare(sqrtlength_test))
 assert (phase_space())
-assert numericdiff_test()

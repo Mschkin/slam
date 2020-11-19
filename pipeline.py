@@ -164,7 +164,7 @@ def pipe_line_forward(I1, I2,q_true,t_true, sqrtlength, array_length, const_leng
     assert ((const_length,) == np.shape(datalist[0]))
     assert ((const_length,) == np.shape(datalist[1]))
     assert ((array_length*9,) == np.shape(datalist[2]))
-    V, dV_dg = dVdg_wrapper(xp, yp, weights, q_true,
+    V, dV_dg,_,_ = dVdg_wrapper(xp, yp, weights, q_true,
                            t_true, hdx_p, hdy_p, hnd_raw_p, test=test)
     return V,dV_dg,compare_imp, flow_parts, describe_parts, inp,dweights_dint1, dweights_dint2,dweights_dsim,dinterest_dstraight
 

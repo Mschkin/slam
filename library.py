@@ -344,70 +344,61 @@ def back_phase_space(dV_dintrest, dintered_dstraight):
     return np.einsum('mnijk,mn->ijk', dintered_dstraight, dV_dintrest)
 
 
-def numericdiff(f, input_list, index,output_index=0):  # , tim):
-    # get it running for quaternions
-    tim=timer()
-    is_tuple = False
-    f0 = f(*input_list)
-    if type(f0) is tuple:
-        f0 = f0[output_index]
-        is_tuple=True
-    h = 1 / 10**8
-    derivant = input_list[index]
-    derivative = np.zeros(
-                          np.shape(derivant)+np.shape(f0), dtype=np.double)
-    if not is_tuple:
-        for s, _ in np.ndenumerate(derivant):
-            derivant_h = deepcopy(derivant) * 1.0
-            derivant_h[s] += h
-            res = (f(*(input_list[:index] + [derivant_h] +
-                    input_list[index + 1:])) - f0) / h
-            derivative[s] = res
+
+def numeric_check(f, input_list, index,compare_to,example_indices,cost_indices,sum_example_indices=False,output_index=0,order=2,probabilistic=True,test_count=10,more_information=False,derivative_size=1):
+    #if compare_to is false return the derivative, if more_information is wanted, input a list
+    h = 10 ** ((-np.log10(derivative_size) - 16) / 3)
+    if probabilistic:
+        index_set = set()
+        assert test_count <= np.product(np.shape(input_list[index]))
+        while len(index_set) < test_count:
+            index_set.add(tuple(np.random.randint(np.shape(input_list[index]))))
+        index_set = list(index_set)
     else:
-        for s, _ in np.ndenumerate(derivant):
-            derivant_h = deepcopy(derivant) * 1.0
-            derivant_h[s] += h
-            res = (f(*(input_list[:index] + [derivant_h] +
-                    input_list[index + 1:]))[output_index] - f0) / h
-            derivative[s] = res
-    return np.einsum(derivative,list(range(len(np.shape(derivant))+len(np.shape(f0)))),list(range(len(np.shape(derivant)),len(np.shape(derivant))+len(np.shape(f0))))+list(range(len(np.shape(derivant)))))
+        index_set = [i for i, _ in np.ndenumerate(input_list[index])]
+    res = numericdiff(f, input_list, index, index_set, output_index, order, h)
+    compare_cut = []
+    for r, i in enumerate(index_set):
+        compare_cut.append(compare_to[i[:len(example_indices)]+(...,)+ i[len(example_indices):]])
+    compare_cut=np.array(compare_cut)
+    if sum_example_indices:
+        compare_cut = np.sum(compare_cut, axis=tuple(range(1, 1 + len(example_indices))))
+    if more_information:
+        print('norm of numeric dif:',np.linalg.norm(res))
+        print('norm of analytic dif:', np.linalg.norm(compare_cut))
+        print('norm of difference:',np.linalg.norm(compare_cut - res))
+    return np.allclose(compare_cut, res)
 
-def numericdiff_acc(f, input_list, index,output_index=0):  # , tim):
-    # get it running for quaternions
-    tim=timer()
-    is_tuple = False
-    f0 = f(*input_list)
-    if type(f0) is tuple:
-        f0 = f0[output_index]
-        is_tuple=True
-    h = 1 / 10**5.3
-    derivant = input_list[index]
-    derivative = np.zeros(
-                          np.shape(derivant)+np.shape(f0), dtype=np.double)
-    if not is_tuple:
-        for s, _ in np.ndenumerate(derivant):
-            derivant_hp = deepcopy(derivant) * 1.0
-            derivant_hm = deepcopy(derivant) * 1.0
-            derivant_hp[s] += h/2
-            derivant_hm[s] -= h/2
-            res = (f(*(input_list[:index] + [derivant_hp] +
-                    input_list[index + 1:])) - f(*(input_list[:index] + [derivant_hm] +
-                    input_list[index + 1:]))) / h
-            derivative[s] = res
+def numericdiff(fn, input_list, index, index_set, output_index, order, h):
+    f0 = fn(*input_list)
+    if type(f0) == type((1,)):
+        def f(a):
+            return fn(*a)[output_index]
     else:
-        for s, _ in np.ndenumerate(derivant):
-            derivant_hp = deepcopy(derivant) * 1.0
-            derivant_hm = deepcopy(derivant) * 1.0
+        def f(a):
+            return fn(*a)
+    res=[]
+    for s in index_set:
+        if order == 1:
+            derivant_hp = deepcopy(input_list[index]) * 1.0
+            derivant_hp[s] += h
+        elif order==2:
+            derivant_hp = deepcopy(input_list[index]) * 1.0
+            derivant_hm = deepcopy(derivant_hp) * 1.0
             derivant_hp[s] += h/2
-            derivant_hm[s] -= h/2
-            res = (f(*(input_list[:index] + [derivant_hp] +
-                    input_list[index + 1:]))[output_index] - f(*(input_list[:index] + [derivant_hm] +
-                    input_list[index + 1:]))[output_index]) / h
-            derivative[s] = res
-    return np.einsum(derivative,list(range(len(np.shape(derivant))+len(np.shape(f0)))),list(range(len(np.shape(derivant)),len(np.shape(derivant))+len(np.shape(f0))))+list(range(len(np.shape(derivant)))))
-
-
-
+            derivant_hm[s] -= h / 2
+        else:
+            Exception('order must be 1 or 2')
+        f_p = f(input_list[:index] + [derivant_hp] +
+                    input_list[index + 1:])
+        if order==1:
+            f_m = f0
+        elif order == 2:
+            f_m = f(input_list[:index] + [derivant_hm] +
+                    input_list[index + 1:])
+        res.append((f_p - f_m) / h)
+    return np.array(res)
+    
 
 
 class timer:

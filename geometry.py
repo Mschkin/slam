@@ -6,20 +6,27 @@ import cProfile
 from sympy import LeviCivita
 import matplotlib.pyplot as plt
 # todo:
-# fyjkihg67uio87ygh
+# important:
+# refractor testnn 2 5
+# Check backprob uses updated or initial weights 3 1
+# consider bias in fully connected layer & filter 5 4
+# solve vanishing gradients problem 4 2
+# test only randomly and not all derivatives
+# get training data 1 3
+
+
+# for later:
 # test if gradient descent is faster for matrix inversion
-# Check backprob uses updated or initial weights
-# consider bias in fully connected layer & filter
 # boundaries of correct convergence, 0.2 seems still to work
-# we used a distance of off_diagonal_number to boundaries as strart of phasespaceview, to bias against points on boundary, because they could lie outside the other image
 # combine several pictures to one map
-# for training use b,t to get r
 # check if double or float is faster
-# check why there is an error for too big off diagonal numbers in geomerty2.c
-#
-#
+# check if there is still an error for too big off diagonal numbers in geomerty2.c
 
+# conventions:
+# we used a distance of off_diagonal_number to boundaries as strart of phasespaceview, to bias against points on boundary, because they could lie outside the other image
+# for training use b,t to get r
 
+# fyjkihg67uio87ygh
 # random.seed(1267)
 
 
