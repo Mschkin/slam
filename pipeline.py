@@ -75,16 +75,16 @@ def prepare_weights(description1, description2,sqrtlength,off_diagonal_number):
 
 def prepare_weights_backward(dV_dcomp_imp,sqrtlength,off_diagonal_number):
     index = 0
-    dV_ddescription1 = np.zeros((sqrtlength, sqrtlength, 9))
-    dV_ddescription2 = np.zeros((sqrtlength, sqrtlength, 9))
+    dV_ddescription1 = np.zeros((sqrtlength, sqrtlength,1, 9))
+    dV_ddescription2 = np.zeros((sqrtlength, sqrtlength,1, 9))
     for i in range(sqrtlength):
         for k in range(max(0, i - off_diagonal_number), min(sqrtlength, i + off_diagonal_number+1)):
             for j in range(sqrtlength):
                 for l in range(sqrtlength):
-                    dV_ddescription1[i, j] += dV_dcomp_imp[index, 0,:9]
-                    dV_ddescription2[k, l] += dV_dcomp_imp[index, 0, 9:]
+                    dV_ddescription1[i, j,0] += dV_dcomp_imp[index, 0,:9]
+                    dV_ddescription2[k, l,0] += dV_dcomp_imp[index, 0, 9:]
                     index += 1
-    return dV_ddescription1, dV_ddescription2
+    return np.array([dV_ddescription1, dV_ddescription2])
 
 
 def get_weigths(interest1, interest2, similarity,sqrtlength,off_diagonal_number):

@@ -358,15 +358,18 @@ def numeric_check(f, input_list, index,compare_to,example_indices,cost_indices,s
         index_set = [i for i, _ in np.ndenumerate(input_list[index])]
     res = numericdiff(f, input_list, index, index_set, output_index, order, h)
     compare_cut = []
-    for r, i in enumerate(index_set):
-        compare_cut.append(compare_to[i[:len(example_indices)]+(...,)+ i[len(example_indices):]])
+    if not sum_example_indices:
+        for i in index_set:
+            compare_cut.append(compare_to[i[:len(example_indices)] + (...,) + i[len(example_indices):]])
+    else:
+        for i in index_set:
+            compare_cut.append(np.sum(compare_to[(...,) + i], axis=tuple(range(len(example_indices)))))
     compare_cut=np.array(compare_cut)
-    if sum_example_indices:
-        compare_cut = np.sum(compare_cut, axis=tuple(range(1, 1 + len(example_indices))))
     if more_information:
         print('norm of numeric dif:',np.linalg.norm(res))
         print('norm of analytic dif:', np.linalg.norm(compare_cut))
-        print('norm of difference:',np.linalg.norm(compare_cut - res))
+        print('norm of difference:', np.linalg.norm(compare_cut - res))
+        print(np.shape(compare_cut),np.shape(res))
     return np.allclose(compare_cut, res)
 
 def numericdiff(fn, input_list, index, index_set, output_index, order, h):
@@ -374,6 +377,7 @@ def numericdiff(fn, input_list, index, index_set, output_index, order, h):
     if type(f0) == type((1,)):
         def f(a):
             return fn(*a)[output_index]
+        f0 = f0[output_index]
     else:
         def f(a):
             return fn(*a)

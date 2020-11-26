@@ -193,7 +193,7 @@ def dVdg_wrapper(xp, yp, weights, q_true, t_true, hdx_p, hdy_p, hnd_raw_p,test=F
     Hnd_R_p = ffi.cast('double*', Hnd_R_c.__array_interface__['data'][0])
     V_c = dVdg_function_c(q_truep, t_true_p, weights_p,
                           xp_p, yp_p, hdx_p, hdy_p, hnd_raw_p, dVdg_p, r_xp, r_yp)
-    return V_c, dVdg_c, r_xc, r_yc
+    return np.array([V_c]), dVdg_c, r_xc, r_yc
 
 
 class timer:
