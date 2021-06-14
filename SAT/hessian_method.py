@@ -2,8 +2,8 @@ import numpy as np
 
 cnf="""-1 -2 7 0
 -1 -3 7 0
--2 -3 7 0
-1 2 3 0
+-2 -3 7 0"""
+"""1 2 3 0
 -1 -4 7 0
 -1 -5 7 0
 -4 -5 7 0
@@ -45,11 +45,13 @@ cnf="""-1 -2 7 0
 lines=cnf.split("\n")
 clauses=len(lines)
 p=50
-uno=[-1-1/2-1/3]
+#uno=[-1-1/2-1/3]
+uno=[-1]
 N=12*clauses
 
 mat=np.zeros((clauses,15))
-lino=[3]*clauses
+#lino=[3]*clauses
+lino = [1]*clauses
 for i,v in enumerate(lines):
     w=v.split(" ")
     mat[i,abs(int(w[0]))-1]=int(w[0])/abs(int(w[0]))
@@ -61,7 +63,7 @@ mat2=[]
 bino=[]
 for i in range(clauses):
     for k in range(i,clauses):
-        mat2.append((mat[i]+mat[k])/N**2)
+        mat2.append((mat[i]+mat[k])/N)
         if i==k:
             bino.append(-0.5*3)
         else:
@@ -72,7 +74,7 @@ trin=[]
 for i in range(clauses):
     for k in range(i,clauses):
         for l in range(k,clauses):
-            mat3.append((mat[i]+mat[k]+mat[l])/N**3)
+            mat3.append((mat[i]+mat[k]+mat[l])/N**2)
             if i==k:
                 if k==l:
                     trin.append(1/3)
@@ -84,8 +86,11 @@ for i in range(clauses):
                 else:
                     trin.append(2)
 
-Mat =[np.zeros((15))]+ list(mat)+mat2+mat3
-weights = uno+ lino+bino+trin
+#Mat =[np.zeros((14))]+ list(mat)+mat2+mat3
+Mat = [np.zeros((15))] + list(mat)
+Mat = list(mat)
+#weights = uno+ lino+bino+trin
+weights = uno+ lino
 Lintegrals = np.zeros(226)
 boundary = np.log(12*clauses)/p
 print(f"boundar: {boundary}")
@@ -132,4 +137,11 @@ for sumind,row in enumerate(Mat):
     Lintegrals[-1]+=v*weights[sumind]
 Lintegrals/=p
 
-print(Lintegrals)
+"linear term is still wrong, debugging"
+print("weights:",weights)
+print(np.reshape(Lintegrals[:-1],(15,15)))
+print(np.linalg.norm(Lintegrals))
+
+def ToInvert():
+    H=np.zeros()
+
