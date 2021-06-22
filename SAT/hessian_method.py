@@ -69,13 +69,18 @@ for i in range(clauses):
         else:
             bino.append(-1/N/N)#*3 wenn mit dritter ordnung
             
-def genmat(n,K):
+def genmat(n,K,N,mat,lines):
     matn=[]
-    nno=[(-1)**(n+1)/N**n/n*(binom(K+n,K)-1)/n]*clauses**n
     for i,_ in np.ndenumerate(np.zeros((clauses,)*n)):
-        matn.append(np.sum([mat[j] for j in i]))
+        matn.append(sum([mat[j] for j in i]))
+    return matn
 
-
+def gen_constants(n,K,N):
+    if n==0:
+        return [sum(-1/k for k in range(1,K+1))]
+    else:
+        return [(-1)**(n+1)/N**n*(binom(K+n,K)-1)/n]*clauses**n
+     
 
 mat3=[]
 trin=[]
@@ -108,6 +113,7 @@ def expxx(b, pro):
 def expx(b,pro):
     return b*np.exp(pro*b)/pro - np.exp(pro*b)/pro**2
 
+print("debug1",Mat)
 for i in range(15):
 #    print(f"hallo, {i}")
     for k in range(15):
@@ -144,9 +150,60 @@ for sumind,row in enumerate(Mat):
     Lintegrals[-1]+=v*weights[sumind]
 Lintegrals/=p
 
+
+def genLintegrals(K,N,p):
+    mat=np.zeros((clauses,15))
+    for i,v in enumerate(lines):
+        w=v.split(" ")
+        mat[i,abs(int(w[0]))-1]=int(w[0])/abs(int(w[0]))
+        mat[i,abs(int(w[1]))-1]=int(w[1])/abs(int(w[1]))
+        mat[i,abs(int(w[2]))-1]=int(w[2])/abs(int(w[2]))
+    Mat=[np.zeros((15))]+sum([genmat(n,K,N,mat,lines) for n in range(1,K+1)],[])
+    Constants=sum([gen_constants(n,K,N) for n in range(K+1)],[])
+    Lintegrals = np.zeros(226)
+    boundary = np.log(12*clauses)/p
+    print("debug",Constants)
+    for i in range(15):
+    #    print(f"hallo, {i}")
+        for k in range(15):
+            for sumind,row in enumerate(Mat):
+                v = 1
+                if k == i:
+                    for ind, s in enumerate(row):
+                        if s == 0 and ind != i:
+                            v *= 2*boundary
+                        elif s != 0 and ind != i:
+                            v *= (np.exp(p*s*boundary)-np.exp(-p*s*boundary))/p/s
+                        elif s == 0 and ind == i:
+                            v *= 2*boundary**3/3
+                        elif s != 0 and ind == i:
+                            v *= expxx(boundary, p*s)-expxx(-boundary, p*s)
+                if k != i:
+                    for ind, s in enumerate(row):
+                        if s == 0 and ind != i and ind != k:
+                            v *= 2*boundary
+                        elif s != 0 and ind != i and ind != k:
+                            v *= (np.exp(p*s*boundary)-np.exp(-p*s*boundary))/p/s
+                        elif s == 0 and (ind == i or ind == k):
+                            v *= 0
+                        elif s != 0 and (ind == i or ind == k):
+                            v *= expx(boundary, p*s)-expx(-boundary, p*s)
+                Lintegrals[15*i+k]+=v*Constants[sumind]
+    for sumind,row in enumerate(Mat):
+        v = 1
+        for ind, s in enumerate(row):
+            if s == 0:
+                v *= 2*boundary
+            elif s != 0:
+                v *= (np.exp(p*s*boundary)-np.exp(-p*s*boundary))/p/s
+        Lintegrals[-1]+=v*Constants[sumind]
+    Lintegrals/=p
+    return Lintegrals
+
 print("weights:",weights)
-print(np.reshape(Lintegrals[:-1],(15,15)))
-print(np.linalg.norm(Lintegrals))
+#print(np.reshape(Lintegrals[:-1],(15,15)))
+print("diff?",np.linalg.norm(Lintegrals-genLintegrals(2,N,p)))
+
 
 def ToInvert():
     H=np.zeros()
