@@ -117,11 +117,18 @@ def genLintegrals(K,N,p):
     return Lintegrals
 
 #print(np.reshape(Lintegrals[:-1],(15,15)))
-print("diff?",np.linalg.norm(genLintegrals(3,N,p)))
+print("diff?",genLintegrals(2,N,p)[-1])
 
 
-def ToInvert():
-    H=np.zeros()
-
+def ToInvert(boundary):
+    M=np.zeros((226,226))
+    for k in range(15):
+        for l in range(15):
+            M[15*k+k,15*l+l]=2**15 boundary**19/9
+            M[15*k+l,15*l+k]=2**15 boundary**19/9
+            M[15*k+l,15*k+l]=2**15 boundary**19/9
+    for k in range(15):
+        M[15*k+k,15*k+k]=2**15 boundary**19/5
+    return M
 #print("linear term:",(boundary**11 *2**11*boundary**3/3 *2 *(2*np.sinh(boundary
 #    *p)/p)**3/12/p-boundary**17/3 *2**15 /p))
