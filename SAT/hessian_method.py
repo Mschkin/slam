@@ -46,13 +46,13 @@ cnf="""-1 -2 7 0
 lines=cnf.split("\n")
 clauses=len(lines)
 p=50
-#uno=[-1-1/2-1/3]
-uno=[-1-1/2]
+uno=[-1-1/2-1/3]
+#uno=[-1-1/2]
 N=12*clauses
 
 mat=np.zeros((clauses,15))
-#lino=[3]*clauses
-lino = [2/N]*clauses
+lino=[3/N]*clauses
+#lino = [2/N]*clauses
 for i,v in enumerate(lines):
     w=v.split(" ")
     mat[i,abs(int(w[0]))-1]=int(w[0])/abs(int(w[0]))
@@ -65,9 +65,9 @@ for i in range(clauses):
     for k in range(i,clauses):
         mat2.append((mat[i]+mat[k]))
         if i==k:
-            bino.append(-0.5/N/N)#*3 wenn mit dritter ordnung
+            bino.append(-0.5/N/N*3)#*3 wenn mit dritter ordnung
         else:
-            bino.append(-1/N/N)#*3 wenn mit dritter ordnung
+            bino.append(-1/N/N*3)#*3 wenn mit dritter ordnung
             
 def genmat(n,K,N,mat,lines):
     matn=[]
@@ -79,8 +79,11 @@ def gen_constants(n,K,N):
     if n==0:
         return [sum(-1/k for k in range(1,K+1))]
     else:
-        return [(-1)**(n+1)/N**n*(binom(K+n,K)-1)/n]*clauses**n
-     
+        return [(-1)**(n+1)/N**n*binom(K,n)/n]*clauses**n
+    """
+    K=2; n=1, 1/18
+    K=2; n=2, -/(36**2)*(5/2)
+    """
 
 mat3=[]
 trin=[]
@@ -99,10 +102,10 @@ for i in range(clauses):
                 else:
                     trin.append(2/N**3)
 
-#Mat =[np.zeros((14))]+ list(mat)+mat2+mat3
-Mat = [np.zeros((15))] + list(mat)+mat2
-#weights = uno+ lino+bino+trin
-weights = uno+ lino+bino
+Mat =[np.zeros((15))]+ list(mat)+mat2+mat3
+#Mat = [np.zeros((15))] + list(mat)+mat2
+weights = uno+ lino+bino+trin
+#weights = uno+ lino+bino
 Lintegrals = np.zeros(226)
 boundary = np.log(12*clauses)/p
 print(f"boundar: {boundary}")
@@ -164,7 +167,7 @@ def genLintegrals(K,N,p):
     boundary = np.log(12*clauses)/p
     print("debug",Constants)
     for i in range(15):
-    #    print(f"hallo, {i}")
+#        print(f"hallo, {i}")
         for k in range(15):
             for sumind,row in enumerate(Mat):
                 v = 1
@@ -202,7 +205,7 @@ def genLintegrals(K,N,p):
 
 print("weights:",weights)
 #print(np.reshape(Lintegrals[:-1],(15,15)))
-print("diff?",np.linalg.norm(Lintegrals-genLintegrals(2,N,p)))
+print("diff?",np.linalg.norm(Lintegrals-genLintegrals(3,N,p)))
 
 
 def ToInvert():
