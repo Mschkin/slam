@@ -1,10 +1,11 @@
 import numpy as np
 from scipy.special import binom
+import cv2
 
 cnf="""-1 -2 7 0
 -1 -3 7 0
--2 -3 7 0"""
-"""1 2 3 0
+-2 -3 7 0
+1 2 3 0
 -1 -4 7 0
 -1 -5 7 0
 -4 -5 7 0
@@ -47,6 +48,7 @@ lines=cnf.split("\n")
 clauses=len(lines)
 p=50
 N=12*clauses
+boundary = np.log(12*clauses)/p
 
 def genmat(n,K,N,mat,lines):
     matn=[]
@@ -67,7 +69,7 @@ def expx(b,pro):
     return b*np.exp(pro*b)/pro - np.exp(pro*b)/pro**2
 
 
-def genLintegrals(K,N,p):
+def genLintegrals(K,N,p,boundary):
     mat=np.zeros((clauses,15))
     for i,v in enumerate(lines):
         w=v.split(" ")
@@ -76,12 +78,11 @@ def genLintegrals(K,N,p):
         mat[i,abs(int(w[2]))-1]=int(w[2])/abs(int(w[2]))
     Mat=[np.zeros((15))]+sum([genmat(n,K,N,mat,lines) for n in range(1,K+1)],[])
     Constants=sum([gen_constants(n,K,N) for n in range(K+1)],[])
-    Lintegrals = np.zeros(226)
-    boundary = np.log(12*clauses)/p
-    print("debug",Constants)
+    Lintegrals = []
     for i in range(15):
 #        print(f"hallo, {i}")
-        for k in range(15):
+        for k in range(i,15):
+            Lintegrals.append(0)
             for sumind,row in enumerate(Mat):
                 v = 1
                 if k == i:
@@ -104,7 +105,8 @@ def genLintegrals(K,N,p):
                             v *= 0
                         elif s != 0 and (ind == i or ind == k):
                             v *= expx(boundary, p*s)-expx(-boundary, p*s)
-                Lintegrals[15*i+k]+=v*Constants[sumind]
+                Lintegrals[-1]+=v*Constants[sumind]
+    Lintegrals.append(0)
     for sumind,row in enumerate(Mat):
         v = 1
         for ind, s in enumerate(row):
@@ -113,25 +115,47 @@ def genLintegrals(K,N,p):
             elif s != 0:
                 v *= (np.exp(p*s*boundary)-np.exp(-p*s*boundary))/p/s
         Lintegrals[-1]+=v*Constants[sumind]
-    Lintegrals/=p
-    return Lintegrals
+    return np.array(Lintegrals)/p
 
 #print(np.reshape(Lintegrals[:-1],(15,15)))
-print("diff?",genLintegrals(2,N,p)[-1])
+
+def indices(ind1,ind2):
+    re=ind2-ind1
+    dim=15
+    while ind1>0:
+        re+=dim
+        dim-=1
+        ind1-=1
+    return re
+
+def inv_indices(half_matrix):
+    i=0
+    full_mat=np.zeros((15,15))
+    for k in range(15):
+        for l in range(k,15):
+            full_mat[k,l]=half_matrix[i]
+            full_mat[l,k]=half_matrix[i]
+            i+=1
+    return full_mat
 
 
 def ToInvert(boundary):
-    M=np.zeros((226,226))
+    M = np.zeros((121, 121))
     for k in range(15):
-        for l in range(15):
-            M[15*k+k,15*l+l]=-2**15 boundary**19/9
-            M[15*k+l,15*l+k]=-2**15 boundary**19/9
-            M[15*k+l,15*k+l]=-2**15 boundary**19/9
-        M[15*k+k,-1]=2**15 boundary**19/3
-        M[-1,15*k+k]=-2**15 boundary**19/3
+        for l in range(k,15):
+            M[indices(k,k), indices(l,l)] = -2**15 * boundary**19/9
+            M[indices(k,l), indices(l,k)] = -2**15 * boundary**19/9
+            M[indices(k,l), indices(k,l)] = -2**15 * boundary**19/9
+        M[indices(k,k), -1] = 2**15 * boundary**19/3
+        M[-1, indices(k,k)] = -2**15 * boundary**19/3
     for k in range(15):
-        M[15*k+k,15*k+k]=-2**15 boundary**19/5
-    M[-1,-1]=2**15 boundary**15
+        M[indices(k,k), indices(k,k)] = -2**15 * boundary**19/5
+    M[-1, -1] = 2**15 * boundary**15
     return M
+
+Lintegrals=genLintegrals(3,N,p,boundary)
+M=np.linalg.inv(ToInvert(boundary))
+Hessian=inv_indices((M@Lintegrals)[:-1])
+print(np.linalg.eig(Hessian)[0])
 #print("linear term:",(boundary**11 *2**11*boundary**3/3 *2 *(2*np.sinh(boundary
 #    *p)/p)**3/12/p-boundary**17/3 *2**15 /p))
